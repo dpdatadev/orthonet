@@ -4,10 +4,11 @@ require_once 'BibleTools.php';
 error_reporting(E_ALL); //debug
 $bibleGateway = new BibleGateway("NKJV");
 $bibleGateway->getVerseOfTheDay();
+$bibleGatewayVersion = $bibleGateway->version;
 $verseOftheDayText = $bibleGateway->text;
 $verseOfTheDayReference = $bibleGateway->reference;
 $verseOfTheDayLink = $bibleGateway->permalink;
-$verseOfTheDayDisplay = "<a href='" . $verseOfTheDayLink . "'>" . $verseOftheDayText . "</a> - <small><i>" . $verseOfTheDayReference . "</i></small>";
+$verseOfTheDayDisplay = "<a href='" . $verseOfTheDayLink . "'>" . $verseOftheDayText . "</a> - <small><i>" . $verseOfTheDayReference . " " . $bibleGatewayVersion . "</i></small>";
 
 ?>
 <!DOCTYPE html>

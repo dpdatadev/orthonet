@@ -8,7 +8,7 @@ require_once 'DB.php';
 //Tool for getting verse of the day and searching scripture passages from BibleGateway.com
 $orthoChristianArticlesCount = Postgres::run("SELECT COUNT(*) FROM articles.orthochristian;")->fetch();
 $orthodoxChristianTheologyArticlesCount = Postgres::run("SELECT COUNT(*) FROM articles.orthodoxchristiantheology;")->fetch();
-$ancientFaithPodcastCount = Postgres::run("SELECT COUNT(*) FROM podcasts.ancientfaith;")->fetch();
+$ancientFaithPodcastCount = Postgres::run("SELECT COUNT(*) FROM podcasts.displaypodcasts;")->fetch();
 $ocaDailyReadings = Postgres::run("SELECT * FROM scriptures.ocadailyreadings;");
 $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts;");
 ?>
@@ -18,7 +18,7 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
     include_once('header.php');
     ?>
 
-    <div class="jumbotron" style="background-color: antiquewhite">
+    <div class="jumbotron" style="background-color: grey">
         <div class="container">
             <div class="card">
                 <div class="card-header text-center">
@@ -35,20 +35,27 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
                     <ul>
 
 
-                        <li><?php echo "<h3>There are " . $orthoChristianArticlesCount['count'] . " new articles from OrthoChristian.com</h3>"; ?></li>
+                        <?php echo "<h4 class='display-4 text-center'>OrthoChristian.com</h4>"; ?>
+                        <?php echo "<p class='lead text-center'>" . $orthoChristianArticlesCount['count'] . "+ new articles</p>" ?>
                         <br/>
-                        <li><?php echo "<h3>There are " . $orthodoxChristianTheologyArticlesCount['count'] . " new articles from OrthodoxChristianTheology.com</h3>"; ?></li>
+                        <?php echo "<h4 class='display-4 text-center'>OrthodoxChristianTheology.com</h4>"; ?>
+                        <?php echo "<p class='lead text-center'>" . $orthodoxChristianTheologyArticlesCount['count'] . "+ new articles</p>" ?>
                         <br/>
-                        <li><?php echo "<h3>There are " . $ancientFaithPodcastCount['count'] . " podcasts from AncientFaith.com" ?></li>
+                        <?php echo "<h4 class='display-4 text-center'>Ancient Faith Minitries</h4>"; ?>
+                        <?php echo "<p class='lead text-center'>" . $ancientFaithPodcastCount['count'] . "+ new Podcasts episodes!</p>" ?>
                         <br/>
                     </ul>
 
                 </div>
 
                 <div class="card-footer">
-                    <?php echo "<p style='color:green'><strong>Database Connected...</strong></p>"; ?>
-                    <?php echo "<i> Today is </i>" . date("Y/m/d") . "<br />"; ?>
-
+                    <p class="display-4 text-center">Coming Soon!</p>
+                    <ul class="text-center">
+                        <p class="lead"><i>Search functionality!<i></p>
+                        <p class="lead"><i>Patristic Faith Ministries!</i></p>
+                        <p class="lead"><i>Patristic Nectar, Abbot Tryphon</i></p>
+                        <p class="lead"><i>and more!</i></p>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -87,10 +94,12 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
             </div>
         </div>
     </div>
+    <?php
+    include_once('footer.php');
+    ?>
 </div>
+
 </body>
-<?php
-include_once('footer.php');
-?>
+
 
 

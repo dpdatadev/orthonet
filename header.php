@@ -1,7 +1,8 @@
 <?php
 require_once 'BibleTools.php';
 
-error_reporting(E_ALL); //debug
+error_reporting(-1);
+ini_set('display_errors', '1'); //debug
 $bibleGateway = new BibleGateway("NKJV");
 $bibleGateway->getVerseOfTheDay();
 $bibleGatewayVersion = $bibleGateway->version;
@@ -21,7 +22,7 @@ $verseOfTheDayDisplay = "<a href='" . $verseOfTheDayLink . "'>" . $verseOftheDay
     <style>
         body {
             padding-top: 25px;
-            background-color: navajowhite;
+            background-color: burlywood;
         }
 
         .center {

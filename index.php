@@ -31,7 +31,7 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
                 </div>
 
                 <div class="card-body">
-                    <hr/>
+
                     <ul>
 
 
@@ -43,7 +43,7 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
                         <br/>
                         <?php echo "<h4 class='display-4 text-center'>Ancient Faith Minitries</h4>"; ?>
                         <?php echo "<p class='lead text-center'>" . $ancientFaithPodcastCount['count'] . "+ new Podcasts episodes!</p>" ?>
-                        <br/>
+
                     </ul>
 
                 </div>

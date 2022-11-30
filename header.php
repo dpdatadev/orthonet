@@ -1,15 +1,17 @@
 <?php
-require_once 'BibleTools.php';
+require_once './lib/BibleTools.php';
+
+use Scraping\BibleGateway as Bible;
 
 error_reporting(-1);
 ini_set('display_errors', '1'); //debug
-$bibleGateway = new BibleGateway("NKJV");
-$bibleGateway->getVerseOfTheDay();
-$bibleGatewayVersion = $bibleGateway->version;
-$verseOftheDayText = $bibleGateway->text;
-$verseOfTheDayReference = $bibleGateway->reference;
-$verseOfTheDayLink = $bibleGateway->permalink;
-$verseOfTheDayDisplay = "<a href='" . $verseOfTheDayLink . "'>" . $verseOftheDayText . "</a> - <small><i>" . $verseOfTheDayReference . " " . $bibleGatewayVersion . "</i></small>";
+$bible = new Bible("NKJV");
+$bible->getVerseOfTheDay();
+$bibleVersion = $bible->version;
+$verseOftheDayText = $bible->text;
+$verseOfTheDayReference = $bible->reference;
+$verseOfTheDayLink = $bible->permalink;
+$verseOfTheDayDisplay = "<a href='" . $verseOfTheDayLink . "'>" . $verseOftheDayText . "</a> - <small><i>" . $verseOfTheDayReference . " " . $bibleVersion . "</i></small>";
 
 ?>
 <!DOCTYPE html>
@@ -18,7 +20,6 @@ $verseOfTheDayDisplay = "<a href='" . $verseOfTheDayLink . "'>" . $verseOftheDay
     <title>Orthodoxy: Whats new?</title>
     <!-- Bootstrap 4 CSS  -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
-    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
     <style>
         body {
             padding-top: 25px;

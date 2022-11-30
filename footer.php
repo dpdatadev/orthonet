@@ -1,13 +1,3 @@
-<?php
-    $footerMinistries = array(
-        "ancientfaith" => "https://www.ancientfaith.com"
-    );
-
-    $footerYouTubes = array(
-      "" => ""
-    );
-?>
-
 <section class="">
     <!-- Footer -->
     <footer class="bg-secondary text-white text-center text-md-start">
@@ -22,7 +12,7 @@
                     <p>
                         We want resources for inquirers, cathecumens, and Orthodox faithful
                         to be easy to find. Please visit any of these trusted links from
-                        legitimate Orhtodox ministries to be further edified spiritually and
+                        legitimate Orthodox ministries to be further edified spiritually and
                         enrich your learning experience towards Orthodoxy!
                     </p>
                 </div>
@@ -55,7 +45,7 @@
 
                     <ul class="list-unstyled">
                         <li>
-                            <a href='<?php echo $footerMinistries["ancientfaith"];?>' class="text-white">Ancient Faith Ministries</a>
+                            <a href='#!' class="text-white">Ancient Faith Ministries</a>
                         </li>
                         <li>
                             <a href="#!" class="text-white">Link 2</a>

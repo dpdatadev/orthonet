@@ -1,8 +1,41 @@
 <?php
-
+declare(strict_types=1);
 /**
  * Utility class used to get the "Verse of the Day" from BibleGateway.
  */
+
+namespace Scraping;
+
+include_once('simple_html_dom.php');
+include_once('LinkElement.php');
+
+class SaintLink extends LinkElement
+{
+    //Saint of the Day HTML objects
+
+    //this is stupid - I have to upgrade to PHP 8
+    protected static function str_contains($haystack, $needle): bool
+    {
+        if (is_string($haystack) && is_string($needle)) {
+            return '' === $needle || false !== strpos($haystack, $needle);
+        } else {
+            return false;
+        }
+    }
+
+    //utility function
+    //we only want to display "lives of the saints" links
+    //and not the daily troparia and kontakia (or other misc links)
+    public static function isLifeLink($link): bool {
+        if (self::str_contains($link, 'lives')) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
+
 class BibleGateway
 {
     const URL = 'http://www.biblegateway.com';

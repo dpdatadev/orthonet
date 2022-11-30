@@ -67,7 +67,7 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
         <div>
             <div class="container">
                 <h2>Daily Readings</h2>
-                <br/>
+                <br />
                 <?php
                 echo "<ul>";
                 while ($row = $ocaDailyReadings->fetch()) {

@@ -2,7 +2,7 @@
 //Utility used to browse various DOM elements.
 //Typically useful to explore a website while coding/testing/etc.,
 //Was provided as is from simple_html_dom examples directory
-include_once('simple_html_dom.php');
+include_once('./lib/simple_html_dom.php');
 
 function scraping_generic($url, $search) {
     // Didn't find it yet.

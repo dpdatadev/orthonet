@@ -1,3 +1,9 @@
+SELECT s.schema_name, t.table_name, t.table_type, s.schema_owner
+FROM information_schema.schemata s
+         INNER JOIN information_schema.tables t ON t.table_schema = s.schema_name
+WHERE schema_owner = 'linpostgres'
+ORDER BY s.schema_name, t.table_name ASC;
+
 SELECT *
 FROM podcasts.ancientfaith;
 SELECT *

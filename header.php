@@ -1,9 +1,9 @@
 <?php
 require_once './lib/BibleTools.php';
-
+//TODO https://dzone.com/articles/how-to-create-a-simple-and-efficient-php-cache
 use Scraping\BibleGateway as Bible;
 
-error_reporting(-1);
+error_reporting(E_ALL);
 ini_set('display_errors', '1'); //debug
 $bible = new Bible("NKJV");
 $bible->getVerseOfTheDay();
@@ -24,7 +24,7 @@ $verseOfTheDayDisplay = "<a href='" . $verseOfTheDayLink . "'>" . $verseOftheDay
         body {
             padding-top: 25px;
             background-color: burlywood;
-        }
+            }
 
         .center {
             position: absolute;

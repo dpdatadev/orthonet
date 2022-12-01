@@ -166,8 +166,8 @@ class Finder implements \IteratorAggregate, \Countable
      *
      *     $finder->name('*.php')
      *     $finder->name('/\.php$/') // same as above
-     *     $finder->name('test.php')
-     *     $finder->name(['test.py', 'test.php'])
+     *     $finder->name('simple_dom_test.php')
+     *     $finder->name(['test.py', 'simple_dom_test.php'])
      *
      * @param string|string[] $patterns A pattern (a regexp, a glob, or a string) or an array of patterns
      *

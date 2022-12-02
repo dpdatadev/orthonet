@@ -8,13 +8,13 @@ use Scraping\OCALivesOfSaints;
 include_once('../lib/BibleTools.php');
 
 echo "<h2>Integration Tests</h2>";
-echo "<br /><small>OCA Lives of The Saints Scraping</small><hr />";
+echo "<br /><small>OCA Daily Scripture Readings</small><hr />";
 
-$saintPage = new OCALivesOfSaints();
+$dailyReadingPage = new \Scraping\OCADailyReadings();
 
-$saintPage->fetchSaintInfo();
-$saintPage->prepareSaintHtml();
-$saintPage->displaySaintHtml();
+$dailyReadingPage->fetchScriptureInfo();
+$dailyReadingPage->displayScriptureHTML();
+
 
 
 

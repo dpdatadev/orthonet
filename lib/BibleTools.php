@@ -65,6 +65,76 @@ class SaintLink extends LinkElement
     }
 }
 
+//Daily Scripture Reading HTML objects
+class ReadingLink extends LinkElement
+{
+    //utility function
+    //check if the link contains "/readings/daily"
+    public static function isScriptureLink($link): bool
+    {
+        if (self::str_contains($link, 'readings/daily')) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
+class OCADailyReadings
+{
+    private const URL = "https://www.oca.org/readings";
+
+    //array to hold daily scripture readings
+    private $readingLinks;
+    //html collected from the URL
+    private $html;
+
+    public function __construct()
+    {
+        //open the url
+        $this->html = file_get_html(self::URL);
+    }
+
+    public function fetchScriptureInfo()
+    {
+        //find all links
+        $readings = $this->html->find('a');
+        //now sift through them and find out which ones are for
+        //the daily scriptures
+        foreach ($readings as $reading) {
+            if (ReadingLink::isScriptureLink($reading->href)) {
+                $readingText = $reading->plaintext;
+                $readingLink = "https://www.oca.org" . $reading->href;
+                //create new scripture link
+                $dailyReading = new ReadingLink($readingLink, $readingText);
+                //add it to the array for display
+                $this->readingLinks[] = $dailyReading;
+            }
+        }
+    }
+
+    public function displayScriptureHTML()
+    {
+
+        echo "<div class='container'>";
+        echo "<br />";
+        echo "<h2>Daily Readings</h2>";
+        echo "<br />";
+
+
+        echo "<ul>";
+        foreach ($this->readingLinks as $dailyScriptureReading) {
+            echo $dailyScriptureReading->displayHTML();
+        }
+        echo "</ul>";
+        echo "<br />";
+        echo "</div>";
+        echo "<hr />";
+
+
+    }
+}
+
 class OCALivesOfSaints
 {
     private const URL = "https://www.oca.org/saints/lives/";
@@ -119,12 +189,14 @@ class OCALivesOfSaints
         //and create an object with each element of each array
         //corresponding to a property ex. Object(link, text) -
         //link is from array1, text is from array2.
-        array_values($this->saintLinksSort);
+        //removed 12/2/2022
+        //array_values($this->saintLinksSort);
 
         //there could be varying number of saints each day
         //we will only work with the top 3
-        array_splice($this->saintNamesSort, 0, 3);
-        array_splice($this->saintLinksSort, 0, 3);
+        //removed 12/1/2022, may come back in the future
+        //array_splice($this->saintNamesSort, 0, 3);
+        //array_splice($this->saintLinksSort, 0, 3);
 
 
         //now we will start accessing the arrays to build the display objects
@@ -207,9 +279,9 @@ class BibleGateway
         libxml_use_internal_errors(false);
         $xpath = new \DOMXPath($dom);
         $context = $xpath->query("//div[@class='passage-wrap']")->item(0);
-        $pararaphs = $xpath->query("//div[@class='passage-wrap']//p");
+        $paragraphs = $xpath->query("//div[@class='passage-wrap']//p");
         $verses = $xpath->query("//div[@class='passage-wrap']//span[contains(@class, 'text')]");
-        foreach ($pararaphs as $paragraph) {
+        foreach ($paragraphs as $paragraph) {
             if ($xpath->query('.//span[contains(@class, "text")]', $paragraph)->length) {
                 $results = $xpath->query("//sup[contains(@class, 'crossreference') or contains(@class, 'footnote')] | //div[contains(@class, 'crossrefs') or contains(@class, 'footnotes')]", $paragraph);
                 foreach ($results as $result) {

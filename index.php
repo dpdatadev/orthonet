@@ -2,6 +2,7 @@
 require_once './lib/DB.php';
 
 use Scraping\OCALivesOfSaints as SaintsPage;
+use Scraping\OCADailyReadings as DailyScripturePage;
 
 // Simple web page to display the latest Orthodox related web scrapes that frequently run on the backend
 
@@ -11,7 +12,6 @@ use Scraping\OCALivesOfSaints as SaintsPage;
 $orthoChristianArticlesCount = Postgres::run("SELECT COUNT(*) FROM articles.orthochristian;")->fetch();
 $orthodoxChristianTheologyArticlesCount = Postgres::run("SELECT COUNT(*) FROM articles.orthodoxchristiantheology;")->fetch();
 $ancientFaithPodcastCount = Postgres::run("SELECT COUNT(*) FROM podcasts.displaypodcasts;")->fetch();
-$ocaDailyReadings = Postgres::run("SELECT * FROM scriptures.ocadailyreadings;");
 $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts;");
 ?>
 <style>
@@ -27,6 +27,11 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
     ?>
 
     <?php
+
+    //construct the OCA Daily Scripture Readings HTML
+    $dailyScriptureReadings = new DailyScripturePage();
+    $dailyScriptureReadings->fetchScriptureInfo();
+
     //construct the OCA Saint of the Day HTML
     $saintsOfTheDay = new SaintsPage();
     $saintsOfTheDay->fetchSaintInfo();
@@ -45,7 +50,8 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
                          height="400" , width="300">
 
                     <div style="background-color: lightblue">
-                        <h4 class='display-4' style="color:darkblue"><i>The best of the Orthodox Internet, in one place.</i></h4>
+                        <h4 class='display-4' style="color:darkblue"><i>The best of the Orthodox Internet, in one
+                                place.</i></h4>
                     </div>
                 </div>
 
@@ -85,22 +91,8 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
     <div>
         <div>
             <hr/>
-            <br/>
-            <div class="container">
-                <h2>Daily Readings</h2>
-                <br/>
-                <?php
-                echo "<ul>";
-                while ($row = $ocaDailyReadings->fetch()) {
-
-                    echo "<li class='list-group-item'>" . "<a href='" . $row['link'] . "'>" . $row['text'] . "</a>" . "</li>";
-
-                }
-                echo "</ul>";
-                ?>
-                <br/>
-            </div>
-            <hr/>
+            <!--Display the OCA daily Scripture Readings-->
+            <?php $dailyScriptureReadings->displayScriptureHTML(); ?>
             <!--Display the OCA daily Lives of Saints-->
             <?php $saintsOfTheDay->displaySaintHtml(); ?>
             <br/>

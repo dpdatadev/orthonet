@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Scraping;
 
 //opensource PHP web scraping library
+use http\Exception\UnexpectedValueException;
+
 include_once('simple_html_dom.php');
 
 class LinkElement
@@ -80,6 +82,98 @@ class ReadingLink extends LinkElement
     }
 }
 
+
+class PodcastLink extends LinkElement
+{
+    //utility function
+    //check if the link contains "/readings/daily"
+    public static function isPodcastLink($link): bool
+    {
+        if (self::str_contains($link, '/podcasts/')) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
+//Recent Podcast Episodes published by Ancient Faith
+class AncientFaithPodcasts
+{
+
+    private const URL = "https://www.ancientfaith.com/podcasts#af-recent-episodes";
+
+    private $podcastLinks;
+    //array of prepared and filtered podcasts to display
+    //TODO - configure this without hardcoding (12/3/2022)
+    //private $podcastLinksDisplay;
+    private $html;
+
+    public function __construct()
+    {
+        $this->podcastLinks = array();
+
+        //$this->podcastLinksDisplay = array();
+
+        $this->html = file_get_html(self::URL);
+    }
+
+    public function fetchPodcastInfo()
+    {
+        $podcasts = $this->html->find('a');
+
+        foreach ($podcasts as $podcast) {
+            if (PodcastLink::isPodcastLink($podcast->href)) {
+                $podcastLink = "https://www.ancientfaith.com" . $podcast->href;
+                $podcastText = $podcast->plaintext;
+
+                $newPodcast = new PodcastLink($podcastLink, $podcastText);
+
+                $this->podcastLinks[] = $newPodcast;
+            }
+        }
+    }
+
+    public function preparePodcastHTML()
+    {
+        try {
+            //TODO - 12/3/2022
+            //TODO - remove hard-coding for only the types of podcasts we are interested in
+            //TODO - well...filtering isn't the problem but hard-coding the categories probably is
+
+            //Now only assuming that we actually have podcasts to display;
+            //ensure the collection is unique and reverse sort
+            if (count($this->podcastLinks) > 1) {
+                $this->podcastLinks = array_unique($this->podcastLinks);
+                rsort($this->podcastLinks);
+            }
+            //if at any time values aren't present in either array
+            //then the state of this operation is to be considered very non-kosher
+        } catch (\http\Exception\UnexpectedValueException $e) {
+            error_log("ERR::CANNOT RENDER HTML, ARRAY NOT DIVISIBLE BY 2, CHECK ELEMENT COUNTS::err");
+        }
+    }
+
+    public function displayPodcastHTML()
+    {
+
+        echo "<div class='container'>";
+        echo "<br />";
+        echo "<h2>Recent Podcasts</h2>";
+        echo "<br />";
+
+        foreach ($this->podcastLinks as $podcastLink) {
+            echo $podcastLink->displayHTML();
+        }
+        echo "<ul>";
+
+        echo "</ul>";
+        echo "<br />";
+        echo "</div>";
+        echo "<hr />";
+    }
+}
+
 class OCADailyReadings
 {
     private const URL = "https://www.oca.org/readings";
@@ -91,6 +185,8 @@ class OCADailyReadings
 
     public function __construct()
     {
+        $this->readingLinks = array();
+
         //open the url
         $this->html = file_get_html(self::URL);
     }

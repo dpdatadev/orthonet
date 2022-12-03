@@ -1,6 +1,5 @@
 <?php
 require_once './lib/BibleTools.php';
-//TODO https://dzone.com/articles/how-to-create-a-simple-and-efficient-php-cache
 use Scraping\BibleGateway as Bible;
 
 error_reporting(E_ALL);

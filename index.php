@@ -1,18 +1,26 @@
+<?php include_once('./lib/top-cache.php'); ?>
 <?php
 require_once './lib/DB.php';
 
 use Scraping\OCALivesOfSaints as SaintsPage;
 use Scraping\OCADailyReadings as DailyScripturePage;
+use Scraping\AncientFaithPodcasts as PodcastsPage;
 
-// Simple web page to display the latest Orthodox related web scrapes that frequently run on the backend
+// Website to display the latest articles, news, podcasts, scripture readings, and saint readings
+//from various Orthodox websites. I can save what I want to for later viewing.
 
 // TODO - dynamically get all scrape schemas and display all the details so we don't have to keep
 //        updating this homepage with a new scraped site
+//12/2/2022 - So we have successfully been able to display much of the scrape data dynamically from the web
+//pages instead of scraping them and loading them to the database first.
+//The plan will be to use the simple_dom library to scrape and display various available data
+//from several websites. Then to make this tool truly usable for me I'll add the ability
+//to save the resources for later - those will persist to the database.
+
+
 //Tool for getting verse of the day and searching scripture passages from BibleGateway.com
 $orthoChristianArticlesCount = Postgres::run("SELECT COUNT(*) FROM articles.orthochristian;")->fetch();
 $orthodoxChristianTheologyArticlesCount = Postgres::run("SELECT COUNT(*) FROM articles.orthodoxchristiantheology;")->fetch();
-$ancientFaithPodcastCount = Postgres::run("SELECT COUNT(*) FROM podcasts.displaypodcasts;")->fetch();
-$topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts;");
 ?>
 <style>
     .card-header {
@@ -36,6 +44,13 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
     $saintsOfTheDay = new SaintsPage();
     $saintsOfTheDay->fetchSaintInfo();
     $saintsOfTheDay->prepareSaintHtml();
+
+    //construct Ancient Faith podcast HTML
+    $recentPodcasts = new PodcastsPage();
+    $recentPodcasts->fetchPodcastInfo();
+    $recentPodcasts->preparePodcastHTML();
+
+    $ancientFaithPodcastCount = array("count" => 70);
     ?>
 
     <div class="jumbotron" style="background-color: grey">
@@ -66,7 +81,7 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
                         <?php echo "<h4 class='display-4 text-center'>OrthodoxChristianTheology.com</h4>"; ?>
                         <?php echo "<p class='lead text-center'>" . $orthodoxChristianTheologyArticlesCount['count'] . "+ new articles</p>" ?>
                         <br/>
-                        <?php echo "<h4 class='display-4 text-center'>Ancient Faith Minitries</h4>"; ?>
+                        <?php echo "<h4 class='display-4 text-center'>Ancient Faith Ministries</h4>"; ?>
                         <?php echo "<p class='lead text-center'>" . $ancientFaithPodcastCount['count'] . "+ new Podcasts episodes!</p>" ?>
 
                     </ul>
@@ -95,22 +110,9 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
             <?php $dailyScriptureReadings->displayScriptureHTML(); ?>
             <!--Display the OCA daily Lives of Saints-->
             <?php $saintsOfTheDay->displaySaintHtml(); ?>
-            <br/>
-            <div class="container">
-                <?php
-                echo "<h2>Recent Podcasts</h2>";
-                echo "<br />";
-                echo "<ul>";
-                while ($row = $topAncientFaithPodcasts->fetch()) {
+            <!--Display the newest Ancient Faith podcast episodes-->
+            <?php $recentPodcasts->displayPodcastHTML(); ?>
 
-                    echo "<li class='list-group-item'>" . "<a href='" . $row['link'] . "'>" . $row['text'] . "</a>" . "</li>";
-
-                }
-                echo "</ul>";
-                ?>
-            </div>
-            <br/>
-            <hr/>
             <?php echo "<div class='text-center'><span class='badge badge-secondary' style='color:yellow'><i><b>Last Updated: " . date("Y-m-d") . "</b></i></span></div><br>"; ?>
         </div>
     </div>
@@ -118,8 +120,8 @@ $topAncientFaithPodcasts = Postgres::run("SELECT * FROM podcasts.displaypodcasts
     include_once('footer.php');
     ?>
 </div>
-
 </body>
+<?php include_once('./lib/bottom-cache.php'); ?>
 
 
 

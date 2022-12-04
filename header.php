@@ -35,7 +35,6 @@ $verseOfTheDayDisplay = "<a href='" . $verseOfTheDayLink . "'>" . $verseOftheDay
         }
     </style>
 </head>
-
 <?php
 echo "<div class='container'><strong>" . $verseOfTheDayDisplay . "</strong></div>";
 ?>

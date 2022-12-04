@@ -1,7 +1,7 @@
 <?php include_once('./lib/top-cache.php'); ?>
 <?php
 require_once './lib/DB.php';
-
+session_start();
 use Scraping\OCALivesOfSaints as SaintsPage;
 use Scraping\OCADailyReadings as DailyScripturePage;
 use Scraping\AncientFaithPodcasts as PodcastsPage;
@@ -17,6 +17,15 @@ use Scraping\AncientFaithPodcasts as PodcastsPage;
 //from several websites. Then to make this tool truly usable for me I'll add the ability
 //to save the resources for later - those will persist to the database.
 
+//Manage login user
+$pageUserDisplay = "<label style='color:red'><b>LOGIN PROBLEM - CONTACT ADMINISTRATOR!</b></label>";
+
+if (isset($_SESSION["username"])) {
+    $pageUser = $_SESSION["username"];
+    $pageUserDisplay = "<p style='color:blue' class='text-center'><small>Welcome <b><i>" . $pageUser . "!</i></b></small></p>";
+} else {
+    $pageUserDisplay = "<small>You aren't signed in.</small><br /><button class='btn btn-primary'>Login</button>";
+}
 
 //Tool for getting verse of the day and searching scripture passages from BibleGateway.com
 $orthoChristianArticlesCount = Postgres::run("SELECT COUNT(*) FROM articles.orthochristian;")->fetch();
@@ -29,6 +38,11 @@ $orthodoxChristianTheologyArticlesCount = Postgres::run("SELECT COUNT(*) FROM ar
     }
 </style>
 <body class="center">
+<div class="text-center">
+    <?php echo $pageUserDisplay ?>
+
+    <a href="./lib/session_auth_logout.php"><small>Logout</small></a>
+</div>
 <div class="container">
     <?php
     include_once('header.php');

@@ -146,6 +146,7 @@ class AncientFaithPodcasts
             if (count($this->podcastLinks) > 1) {
                 $this->podcastLinks = array_unique($this->podcastLinks);
                 rsort($this->podcastLinks);
+                $this->podcastLinks = array_slice($this->podcastLinks, 0, 25);
             }
             //if at any time values aren't present in either array
             //then the state of this operation is to be considered very non-kosher

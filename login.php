@@ -5,7 +5,7 @@
 require_once("./lib/DB.php");
 
 //PDO singleton - Postgres implementation/dialect
-use PDOSingleton\PostgresImpl as DB;
+use PDOSingleton\Postgres as DB;
 
 //open up the session
 session_start();

@@ -9,15 +9,39 @@ use http\Exception\UnexpectedValueException;
 
 include_once('simple_html_dom.php');
 
+//#[AllowDynamicProperties] PHP 8.2 will deprecate dynamic properties outside of stdClass
 class LinkElement
 {
     protected string $link;
     protected string $text;
+    //handle dynamic properties from HTML
+    protected array $overloadedData;
 
     public function __construct(string $link, string $text)
     {
         $this->link = $link;
         $this->text = $text;
+        $this->overloadedData = array();
+    }
+
+    public function __set($name, $value)
+    {
+        $this->overloadedData[$name] = $value;
+    }
+
+    public function __get($name)
+    {
+        if (array_key_exists($name, $this->overloadedData)) {
+            return $this->overloadedData[$name];
+        }
+
+        $trace = debug_backtrace();
+        trigger_error(
+            'Undefined property via __get(): ' . $name .
+            ' in ' . $trace[0]['file'] .
+            ' on line ' . $trace[0]['line'],
+            E_USER_NOTICE);
+        return null;
     }
 
     public function getLink(): string
@@ -35,31 +59,26 @@ class LinkElement
         return "<li class='list-group-item'>" . "<a href='" . $this->link . "'>" . $this->text . "</a>" . "</li>";
     }
 
-    //this is stupid - I have to upgrade to PHP 8
-    protected static function str_contains($haystack, $needle): bool
-    {
-        if (is_string($haystack) && is_string($needle)) {
-            return '' === $needle || false !== strpos($haystack, $needle);
-        } else {
-            return false;
-        }
-    }
-
     public function __toString(): string
     {
         return "::" . $this->getLink() . "::" . $this->getText() . "::";
     }
 }
 
-//Saint of the Day HTML objects
-class SaintLink extends LinkElement
-{
+//Ancient Faith Recent Podcasts
+class PodcastLink extends LinkElement {}
+//OCA Daily Scripture Readings
+class ReadingLink extends LinkElement {}
+//OCA Life of Saint Readings
+class SaintLink extends LinkElement {}
+
+trait AcceptsSaintLinks {
     //utility function
     //we only want to display "lives of the saints" links
     //and not the daily troparia and kontakia (or other misc links)
-    public static function isLifeLink($link): bool
+    public function isLifeLink($link): bool
     {
-        if (self::str_contains($link, 'lives')) {
+        if (str_contains($link, 'lives')) {
             return true;
         } else {
             return false;
@@ -67,14 +86,12 @@ class SaintLink extends LinkElement
     }
 }
 
-//Daily Scripture Reading HTML objects
-class ReadingLink extends LinkElement
-{
+trait AcceptsReadingLinks {
     //utility function
     //check if the link contains "/readings/daily"
-    public static function isScriptureLink($link): bool
+    public function isScriptureLink($link): bool
     {
-        if (self::str_contains($link, 'readings/daily')) {
+        if (str_contains($link, 'readings/daily')) {
             return true;
         } else {
             return false;
@@ -82,14 +99,12 @@ class ReadingLink extends LinkElement
     }
 }
 
-
-class PodcastLink extends LinkElement
-{
+trait AcceptsPodcastLinks {
     //utility function
     //check if the link contains "/readings/daily"
-    public static function isPodcastLink($link): bool
+    public function isPodcastLink($link): bool
     {
-        if (self::str_contains($link, '/podcasts/')) {
+        if (str_contains($link, '/podcasts/')) {
             return true;
         } else {
             return false;
@@ -100,6 +115,7 @@ class PodcastLink extends LinkElement
 //Recent Podcast Episodes published by Ancient Faith
 class AncientFaithPodcasts
 {
+    use AcceptsPodcastLinks;
 
     private const URL = "https://www.ancientfaith.com/podcasts#af-recent-episodes";
 
@@ -127,7 +143,7 @@ class AncientFaithPodcasts
         $podcasts = $this->html->find('a');
 
         foreach ($podcasts as $podcast) {
-            if (PodcastLink::isPodcastLink($podcast->href)) {
+            if ($this->isPodcastLink($podcast->href)) {
                 $podcastLink = "https://www.ancientfaith.com" . $podcast->href;
                 $podcastText = $podcast->plaintext;
 
@@ -181,6 +197,8 @@ class AncientFaithPodcasts
 
 class OCADailyReadings
 {
+    use AcceptsReadingLinks;
+
     private const URL = "https://www.oca.org/readings";
 
     //array to hold daily scripture readings
@@ -203,7 +221,7 @@ class OCADailyReadings
         //now sift through them and find out which ones are for
         //the daily scriptures
         foreach ($readings as $reading) {
-            if (ReadingLink::isScriptureLink($reading->href)) {
+            if ($this->isScriptureLink($reading->href)) {
                 $readingText = $reading->plaintext;
                 $readingLink = "https://www.oca.org" . $reading->href;
                 //create new scripture link
@@ -238,6 +256,8 @@ class OCADailyReadings
 
 class OCALivesOfSaints
 {
+    use AcceptsSaintLinks;
+
     private const URL = "https://www.oca.org/saints/lives/";
 
     private $saintSnippets;
@@ -267,7 +287,7 @@ class OCALivesOfSaints
 
         //construct fully qualified links for each of the saints
         foreach ($this->saintLinks as $link) {
-            if (SaintLink::isLifeLink($link->href)) {
+            if ($this->isLifeLink($link->href)) {
                 $saintLink = "https://www.oca.org" . $link->href;
                 $this->saintLinksSort[] = $saintLink;
             }

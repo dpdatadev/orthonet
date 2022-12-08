@@ -2,7 +2,7 @@
 <?php
 require_once './lib/DB.php';
 session_start();
-use PDOSingleton\PostgresImpl as DB;
+use PDOSingleton\Postgres as DB;
 use Scraping\OCALivesOfSaints as SaintsPage;
 use Scraping\OCADailyReadings as DailyScripturePage;
 use Scraping\AncientFaithPodcasts as PodcastsPage;

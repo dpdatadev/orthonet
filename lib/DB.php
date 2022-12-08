@@ -5,11 +5,13 @@
 namespace PDOSingleton;
 //Basic wrapper/proxy - Singleton PDO
 //Documentation: https://phpdelusions.net/pdo/pdo_wrapper
+//TODO? - Abstract class Singleton:
+//https://stackoverflow.com/questions/3885464/singleton-in-abstract-class-php#:~:text=abstract%20class%20Singleton%20%7B%20private%20static%20%24instances%20%3D,%24class%20%28%24_params%29%3B%20%7D%20return%20self%3A%3A%24instances%20%5B%24class%5D%3B%20%7D%20%7D
 use Exception;
 use PDO;
 
 
-class PostgresImpl
+class Postgres
 {
     protected static $instance = null;
 
@@ -20,7 +22,6 @@ class PostgresImpl
     {
         if (self::$instance === null) {
             $params = parse_ini_file('database-pg.ini');
-
             if ($params === false) {
                 throw new Exception("Error reading database configuration file");
             }

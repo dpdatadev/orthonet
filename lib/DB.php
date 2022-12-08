@@ -1,8 +1,14 @@
-<?php
+<?php /** @noinspection ALL */
 
+/** @noinspection PhpUndefinedClassInspection */
+
+namespace PDOSingleton;
 //Basic wrapper/proxy - Singleton PDO
 //Documentation: https://phpdelusions.net/pdo/pdo_wrapper
-class Postgres
+use Exception;
+use PDO;
+
+class PostgresImpl
 {
     protected static $instance = null;
 
@@ -14,17 +20,16 @@ class Postgres
     {
     }
 
-
     /**
      * @throws Exception
      */
     public static function instance()
     {
         if (self::$instance === null) {
-            $params = parse_ini_file('database.ini');
+            $params = parse_ini_file('database-pg.ini');
 
             if ($params === false) {
-                throw new \Exception("Error reading database configuration file");
+                throw new Exception("Error reading database configuration file");
             }
 
             $opt = array(

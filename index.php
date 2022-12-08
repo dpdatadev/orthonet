@@ -1,7 +1,8 @@
-<?php include_once('./lib/top-cache.php'); ?>
+<?php //include_once('./lib/top-cache.php'); ?>
 <?php
 require_once './lib/DB.php';
 session_start();
+use PDOSingleton\PostgresImpl as DB;
 use Scraping\OCALivesOfSaints as SaintsPage;
 use Scraping\OCADailyReadings as DailyScripturePage;
 use Scraping\AncientFaithPodcasts as PodcastsPage;
@@ -22,14 +23,14 @@ $pageUserDisplay = "<label style='color:red'><b>LOGIN PROBLEM - CONTACT ADMINIST
 
 if (isset($_SESSION["username"])) {
     $pageUser = $_SESSION["username"];
-    $pageUserDisplay = "<p style='color:blue' class='text-center'><small>Welcome <b><i>" . $pageUser . "!</i></b></small></p>";
+    $pageUserDisplay = "<p style='color:blue' class='text-center'><small>Welcome <b><i>" . $pageUser . "!</i></b></small></p><a href='logout.php'><small>Logout</small></a>";
 } else {
-    $pageUserDisplay = "<small>You aren't signed in.</small><br /><button class='btn btn-primary'>Login</button>";
+    $pageUserDisplay = "<small>You aren't signed in.</small><br /><button class='btn'><a href='login.php' />Login</button>";
 }
 
 //Tool for getting verse of the day and searching scripture passages from BibleGateway.com
-$orthoChristianArticlesCount = Postgres::run("SELECT COUNT(*) FROM articles.orthochristian;")->fetch();
-$orthodoxChristianTheologyArticlesCount = Postgres::run("SELECT COUNT(*) FROM articles.orthodoxchristiantheology;")->fetch();
+$orthoChristianArticlesCount = DB::run("SELECT COUNT(*) FROM articles.orthochristian;")->fetch();
+$orthodoxChristianTheologyArticlesCount = DB::run("SELECT COUNT(*) FROM articles.orthodoxchristiantheology;")->fetch();
 ?>
 <style>
     .card-header {
@@ -40,8 +41,6 @@ $orthodoxChristianTheologyArticlesCount = Postgres::run("SELECT COUNT(*) FROM ar
 <body class="center">
 <div class="text-center">
     <?php echo $pageUserDisplay ?>
-
-    <a href="./lib/session_auth_logout.php"><small>Logout</small></a>
 </div>
 <div class="container">
     <?php
@@ -64,7 +63,7 @@ $orthodoxChristianTheologyArticlesCount = Postgres::run("SELECT COUNT(*) FROM ar
     $recentPodcasts->fetchPodcastInfo();
     $recentPodcasts->preparePodcastHTML();
 
-    $ancientFaithPodcastCount = array("count" => 70);
+    $ancientFaithPodcastCount = $recentPodcasts->getPodcastLinkCount();
     ?>
 
     <div class="jumbotron" style="background-color: grey">
@@ -96,7 +95,7 @@ $orthodoxChristianTheologyArticlesCount = Postgres::run("SELECT COUNT(*) FROM ar
                         <?php echo "<p class='lead text-center'>" . $orthodoxChristianTheologyArticlesCount['count'] . "+ new articles</p>" ?>
                         <br/>
                         <?php echo "<h4 class='display-4 text-center'>Ancient Faith Ministries</h4>"; ?>
-                        <?php echo "<p class='lead text-center'>" . $ancientFaithPodcastCount['count'] . "+ new Podcasts episodes!</p>" ?>
+                        <?php echo "<p class='lead text-center'>" . $ancientFaithPodcastCount['count'] . "+ new Podcast episodes!</p>" ?>
 
                     </ul>
 
@@ -135,7 +134,7 @@ $orthodoxChristianTheologyArticlesCount = Postgres::run("SELECT COUNT(*) FROM ar
     ?>
 </div>
 </body>
-<?php include_once('./lib/bottom-cache.php'); ?>
+<?php //include_once('./lib/bottom-cache.php'); ?>
 
 
 

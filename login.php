@@ -2,13 +2,15 @@
 //login.php
 //manage login with PDO
 //manage sessions
-require_once("DB.php");
-//PDO singleton - Postgres dialect
-use Postgres as DB;
+require_once("./lib/DB.php");
+
+//PDO singleton - Postgres implementation/dialect
+use PDOSingleton\PostgresImpl as DB;
+
 //open up the session
 session_start();
 //home page
-const LOGIN_SUCCESS_ROUTE = "../index.php";
+const LOGIN_SUCCESS_ROUTE = "index.php";
 //default message
 $message = "";
 try { //user is already logged in - send em' home
@@ -39,8 +41,6 @@ try { //user is already logged in - send em' home
                     $message = "<label style='color:red'>LOGIN FAILURE -- CONTACT ADMINISTRATOR</label>";
                 }
             }
-        } else { //display if there is an error with the form posting
-            $message = "<label style='color:red'>LOGIN FAILURE -- CONTACT ADMINISTRATOR</label>";
         }
     }
 } catch (PDOException $e) { //debug - show generic message but log the PDOException
@@ -63,7 +63,7 @@ try { //user is already logged in - send em' home
         echo '<label class="text-danger">' . $message . '</label>';
     }
     ?>
-    <h3 align="">PHP Login Script using PDO</h3><br/>
+    <h3 align="">Orthodox Portal Login</h3><br/>
     <form method="post">
         <label>Username</label>
         <input type="text" name="username" class="form-control"/>

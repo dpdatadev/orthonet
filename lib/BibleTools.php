@@ -118,6 +118,10 @@ class AncientFaithPodcasts
         $this->html = file_get_html(self::URL);
     }
 
+    public function getPodcastLinkCount() {
+        return array('count' => count($this->podcastLinks));
+    }
+
     public function fetchPodcastInfo()
     {
         $podcasts = $this->html->find('a');
@@ -150,7 +154,7 @@ class AncientFaithPodcasts
             }
             //if at any time values aren't present in either array
             //then the state of this operation is to be considered very non-kosher
-        } catch (\http\Exception\UnexpectedValueException $e) {
+        } catch (UnexpectedValueException $e) {
             error_log("ERR::CANNOT RENDER HTML, ARRAY NOT DIVISIBLE BY 2, CHECK ELEMENT COUNTS::err");
         }
     }
@@ -308,7 +312,7 @@ class OCALivesOfSaints
                     $this->saintSnippets[] = $saint;
                 }
             }
-        } catch (\http\Exception\UnexpectedValueException $e) {
+        } catch (UnexpectedValueException $e) {
             error_log("ERR::CANNOT RENDER HTML, ARRAY NOT DIVISIBLE BY 2, CHECK ELEMENT COUNTS::err");
         }
     }

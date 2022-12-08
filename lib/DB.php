@@ -8,17 +8,10 @@ namespace PDOSingleton;
 use Exception;
 use PDO;
 
+
 class PostgresImpl
 {
     protected static $instance = null;
-
-    protected function __construct()
-    {
-    }
-
-    protected function __clone()
-    {
-    }
 
     /**
      * @throws Exception

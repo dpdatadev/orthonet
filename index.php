@@ -20,12 +20,14 @@ use Scraping\AncientFaithPodcasts as PodcastsPage;
 
 //Manage login user
 $pageUserDisplay = "<label style='color:red'><b>LOGIN PROBLEM - CONTACT ADMINISTRATOR!</b></label>";
+$pageUserRegisterDisplay = "";
 
 if (isset($_SESSION["username"])) {
     $pageUser = $_SESSION["username"];
     $pageUserDisplay = "<p style='color:blue' class='text-center'><small>Welcome <b><i>" . $pageUser . "!</i></b></small></p><a href='logout.php'><small>Logout</small></a>";
 } else {
-    $pageUserDisplay = "<small>You aren't signed in.</small><br /><button class='btn'><a href='login.php' />Login</button>";
+    $pageUserDisplay = "<p><button class='btn'><a href='login.php' />Login</button></p>";
+    $pageUserRegisterDisplay = "<p><button class='btn'><a href='register.php' />Register</button></p>";
 }
 
 //Tool for getting verse of the day and searching scripture passages from BibleGateway.com
@@ -41,6 +43,10 @@ $orthodoxChristianTheologyArticlesCount = DB::run("SELECT COUNT(*) FROM articles
 <body class="center">
 <div class="text-center">
     <?php echo $pageUserDisplay ?>
+</div>
+<hr />
+<div class="text-center">
+    <?php echo $pageUserRegisterDisplay ?>
 </div>
 <div class="container">
     <?php

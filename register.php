@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpUndefinedMethodInspection */
 //login.php
 //manage login with PDO
 //manage sessions
@@ -10,36 +10,28 @@ use PDOSingleton\Postgres as DB;
 //open up the session
 session_start();
 //home page
-const LOGIN_SUCCESS_ROUTE = "index.php";
+const LOGIN_SUCCESS_ROUTE = "login.php";
 //default message
 $message = "";
 try { //user is already logged in - send em' home
     if (isset($_SESSION["username"])) {
         header("location: " . LOGIN_SUCCESS_ROUTE);
     } else { //user isn't logged in - proceed
-        if (isset($_POST["login"])) {//process the form request
+        if (isset($_POST["register"])) {//process the form request
             if (empty($_POST["username"]) || empty($_POST["password"])) {//check fields for user info
                 $message = "<label style='color:red'>All fields are required</label>";
             } else {//send request for credentials to database
-                $formUsername = $_POST["username"];
-                $formPassword = $_POST["password"];
-                $sql = "SELECT * FROM admin.users WHERE username = :username";
-                $query = DB::prepare($sql);
-                $query->execute(array(':username' => $formUsername));
-                $userFetch = $query->fetch();
-                if ($query->rowCount() > 0) {
-                    $dbUserName = $userFetch["username"];
-                    $dbPassword = $userFetch["password"];
-                    if ($formUsername == $dbUserName) {
-                        if (password_verify($formPassword, $dbPassword)) {
-                            $_SESSION["username"] = $dbUserName;//store the username for display
-                            header("location: " . LOGIN_SUCCESS_ROUTE);//send home
-                        } else {
-                            $message = "<label style='color:red'>LOGIN FAILURE -- INVALID PASSWORD</label>";
-                        }
-                    } else {
-                        $message = "<label style='color:red'>LOGIN FAILURE -- INVALID USERNAME</label>";
-                    }
+                $sql = "INSERT INTO admin.users(username, password)VALUES(?, ?)";
+                $stmt = DB::prepare($sql);
+                $username = $_POST["username"];
+                $password_hash = password_hash($_POST["password"], PASSWORD_DEFAULT);
+                $stmt->execute([$username, $password_hash]);
+                $verifyCount = DB::lastInsertId();
+                if ($verifyCount > 0) {//got a valid database hit
+                    $_SESSION["username"] = $username;//store the username for display
+                    header("location: " . LOGIN_SUCCESS_ROUTE);//send to log in (which should send them home)
+                } else {//display if there is an error with the database request
+                    $message = "<label style='color:red'>REGISTRATION FAILURE -- CONTACT ADMINISTRATOR</label>";
                 }
             }
         }
@@ -51,7 +43,7 @@ try { //user is already logged in - send em' home
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Login</title>
+    <title>Register</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"/>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
@@ -64,7 +56,7 @@ try { //user is already logged in - send em' home
         echo '<label class="text-danger">' . $message . '</label>';
     }
     ?>
-    <h3 align="">Orthodox Portal Login</h3><br/>
+    <h3 align="">Orthodox Portal Sign Up</h3><br/>
     <form method="post">
         <label>Username</label>
         <input type="text" name="username" class="form-control"/>
@@ -72,7 +64,7 @@ try { //user is already logged in - send em' home
         <label>Password</label>
         <input type="password" name="password" class="form-control"/>
         <br/>
-        <input type="submit" name="login" class="btn btn-info" value="Login"/>
+        <input type="submit" name="register" class="btn btn-info" value="Register"/>
     </form>
 </div>
 <br/>

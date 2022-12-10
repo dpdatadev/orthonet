@@ -72,8 +72,10 @@ class ReadingLink extends LinkElement {}
 //OCA Life of Saint Readings
 class SaintLink extends LinkElement {}
 
-trait AcceptsSaintLinks {
-    //utility function
+trait ValidatesSaintLinks {
+    //utility functions for validating different types of links
+
+
     //we only want to display "lives of the saints" links
     //and not the daily troparia and kontakia (or other misc links)
     public function isLifeLink($link): bool
@@ -86,7 +88,7 @@ trait AcceptsSaintLinks {
     }
 }
 
-trait AcceptsReadingLinks {
+trait ValidatesReadingLinks {
     //utility function
     //check if the link contains "/readings/daily"
     public function isScriptureLink($link): bool
@@ -99,7 +101,7 @@ trait AcceptsReadingLinks {
     }
 }
 
-trait AcceptsPodcastLinks {
+trait ValidatesPodcastLinks {
     //utility function
     //check if the link contains "/readings/daily"
     public function isPodcastLink($link): bool
@@ -115,7 +117,7 @@ trait AcceptsPodcastLinks {
 //Recent Podcast Episodes published by Ancient Faith
 class AncientFaithPodcasts
 {
-    use AcceptsPodcastLinks;
+    use ValidatesPodcastLinks;
 
     private const URL = "https://www.ancientfaith.com/podcasts#af-recent-episodes";
 
@@ -171,7 +173,7 @@ class AncientFaithPodcasts
             //if at any time values aren't present in either array
             //then the state of this operation is to be considered very non-kosher
         } catch (UnexpectedValueException $e) {
-            error_log("ERR::CANNOT RENDER HTML, ARRAY NOT DIVISIBLE BY 2, CHECK ELEMENT COUNTS::err");
+            error_log("ERR::CANNOT RENDER HTML::err");
         }
     }
 
@@ -197,7 +199,7 @@ class AncientFaithPodcasts
 
 class OCADailyReadings
 {
-    use AcceptsReadingLinks;
+    use ValidatesReadingLinks;
 
     private const URL = "https://www.oca.org/readings";
 
@@ -256,7 +258,7 @@ class OCADailyReadings
 
 class OCALivesOfSaints
 {
-    use AcceptsSaintLinks;
+    use ValidatesSaintLinks;
 
     private const URL = "https://www.oca.org/saints/lives/";
 

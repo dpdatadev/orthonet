@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 error_reporting(E_ALL);
 
@@ -15,4 +16,3 @@ $podCastPage = new Scraping\AncientFaithPodcasts();
 $podCastPage->fetchPodcastInfo();
 $podCastPage->preparePodcastHTML();
 $podCastPage->displayPodcastHTML();
-

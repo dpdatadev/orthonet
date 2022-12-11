@@ -4,7 +4,8 @@
 //Was provided as is from simple_html_dom examples directory
 include_once('./lib/simple_html_dom.php');
 
-function scraping_generic($url, $search) {
+function scraping_generic($url, $search)
+{
     // Didn't find it yet.
     $return = false;
 
@@ -14,7 +15,7 @@ function scraping_generic($url, $search) {
     echo "url has been read.<br/>";
 
     // get article block
-    foreach($html->find($search) as $found) {
+    foreach ($html->find($search) as $found) {
         // Found at least one.
         $return - true;
         echo "found a: " . $search . "<br/><pre>";
@@ -31,15 +32,13 @@ function scraping_generic($url, $search) {
 
 
 // ------------------------------------------
-error_log ("post:" . print_r($_POST, true));
+error_log("post:" . print_r($_POST, true));
 $url = "";
-if (isset($_POST['url']))
-{
+if (isset($_POST['url'])) {
     $url = $_POST['url'];
 }
 $search = "";
-if (isset($_POST['search']))
-{
+if (isset($_POST['search'])) {
     $search = $_POST['search'];
 }
 ?>
@@ -51,11 +50,9 @@ if (isset($_POST['search']))
 <?php
 // -----------------------------------------------------------------------------
 // test it!
-if (isset ($_POST['submit']))
-{
+if (isset($_POST['submit'])) {
     $response = scraping_generic($_POST['url'], $_POST['search']);
-    if (!$response)
-    {
+    if (!$response) {
         echo "Did not find any: " . $_POST['search'] . "<br />";
     }
 }

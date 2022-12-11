@@ -1,6 +1,8 @@
 <?php
+
 declare(strict_types=1);
 
+//TODO - (12/10/2022) handle errors returned from file_get_contents/html - if a site can't be reached we need to handle that properly
 
 namespace Scraping;
 
@@ -40,7 +42,8 @@ class LinkElement
             'Undefined property via __get(): ' . $name .
             ' in ' . $trace[0]['file'] .
             ' on line ' . $trace[0]['line'],
-            E_USER_NOTICE);
+            E_USER_NOTICE
+        );
         return null;
     }
 
@@ -66,13 +69,20 @@ class LinkElement
 }
 
 //Ancient Faith Recent Podcasts
-class PodcastLink extends LinkElement {}
+class PodcastLink extends LinkElement
+{
+}
 //OCA Daily Scripture Readings
-class ReadingLink extends LinkElement {}
+class ReadingLink extends LinkElement
+{
+}
 //OCA Life of Saint Readings
-class SaintLink extends LinkElement {}
+class SaintLink extends LinkElement
+{
+}
 
-trait ValidatesSaintLinks {
+trait ValidatesSaintLinks
+{
     //utility functions for validating different types of links
 
 
@@ -88,7 +98,8 @@ trait ValidatesSaintLinks {
     }
 }
 
-trait ValidatesReadingLinks {
+trait ValidatesReadingLinks
+{
     //utility function
     //check if the link contains "/readings/daily"
     public function isScriptureLink($link): bool
@@ -101,7 +112,8 @@ trait ValidatesReadingLinks {
     }
 }
 
-trait ValidatesPodcastLinks {
+trait ValidatesPodcastLinks
+{
     //utility function
     //check if the link contains "/readings/daily"
     public function isPodcastLink($link): bool
@@ -136,7 +148,8 @@ class AncientFaithPodcasts
         $this->html = file_get_html(self::URL);
     }
 
-    public function getPodcastLinkCount() {
+    public function getPodcastLinkCount()
+    {
         return array('count' => count($this->podcastLinks));
     }
 
@@ -179,7 +192,6 @@ class AncientFaithPodcasts
 
     public function displayPodcastHTML()
     {
-
         echo "<div class='container'>";
         echo "<br />";
         echo "<h2>Recent Podcasts</h2>";
@@ -236,7 +248,6 @@ class OCADailyReadings
 
     public function displayScriptureHTML()
     {
-
         echo "<div class='container'>";
         echo "<br />";
         echo "<h2>Daily Readings</h2>";
@@ -251,8 +262,6 @@ class OCADailyReadings
         echo "<br />";
         echo "</div>";
         echo "<hr />";
-
-
     }
 }
 
@@ -293,7 +302,6 @@ class OCALivesOfSaints
                 $saintLink = "https://www.oca.org" . $link->href;
                 $this->saintLinksSort[] = $saintLink;
             }
-
         }
         //populate all the saint names (plain text, remove html/styling)
         foreach ($this->saintNames as $saint) {
@@ -355,13 +363,12 @@ class OCALivesOfSaints
         echo "<br />";
         echo "</div>";
         echo "<hr />";
-
     }
 }
 
 class BibleGateway
 {
-    const URL = 'http://www.biblegateway.com';
+    public const URL = 'http://www.biblegateway.com';
 
     protected $version;
     protected $reference;
@@ -396,7 +403,7 @@ class BibleGateway
         $this->text = '';
         $url = self::URL . '/passage?' . http_build_query(['search' => $passage, 'version' => $this->version]);
         $html = file_get_contents($url);
-        $dom = new \DOMDocument;
+        $dom = new \DOMDocument();
         libxml_use_internal_errors(true);
         $dom->loadHTML($html);
         libxml_use_internal_errors(false);

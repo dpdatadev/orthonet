@@ -63,7 +63,7 @@ try { //user is already logged in - send em' home
     if (isset($message)) {
         echo '<label class="text-danger">' . $message . '</label>';
     }
-    ?>
+?>
     <h3 align="">Orthodox Portal Login</h3><br/>
     <form method="post">
         <label>Username</label>

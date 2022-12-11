@@ -1,4 +1,4 @@
-<?php //include_once('./lib/top-cache.php'); ?>
+<?php //include_once('./lib/top-cache.php');?>
 <?php
 require_once './lib/DB.php';
 session_start();
@@ -51,26 +51,26 @@ $orthodoxChristianTheologyArticlesCount = DB::run("SELECT COUNT(*) FROM articles
 <div class="container">
     <?php
     include_once('header.php');
-    ?>
+?>
 
     <?php
 
-    //construct the OCA Daily Scripture Readings HTML
-    $dailyScriptureReadings = new DailyScripturePage();
-    $dailyScriptureReadings->fetchScriptureInfo();
+//construct the OCA Daily Scripture Readings HTML
+$dailyScriptureReadings = new DailyScripturePage();
+$dailyScriptureReadings->fetchScriptureInfo();
 
-    //construct the OCA Saint of the Day HTML
-    $saintsOfTheDay = new SaintsPage();
-    $saintsOfTheDay->fetchSaintInfo();
-    $saintsOfTheDay->prepareSaintHtml();
+//construct the OCA Saint of the Day HTML
+$saintsOfTheDay = new SaintsPage();
+$saintsOfTheDay->fetchSaintInfo();
+$saintsOfTheDay->prepareSaintHtml();
 
-    //construct Ancient Faith podcast HTML
-    $recentPodcasts = new PodcastsPage();
-    $recentPodcasts->fetchPodcastInfo();
-    $recentPodcasts->preparePodcastHTML();
+//construct Ancient Faith podcast HTML
+$recentPodcasts = new PodcastsPage();
+$recentPodcasts->fetchPodcastInfo();
+$recentPodcasts->preparePodcastHTML();
 
-    $ancientFaithPodcastCount = $recentPodcasts->getPodcastLinkCount();
-    ?>
+$ancientFaithPodcastCount = $recentPodcasts->getPodcastLinkCount();
+?>
 
     <div class="jumbotron" style="background-color: grey">
         <div class="container">
@@ -136,11 +136,11 @@ $orthodoxChristianTheologyArticlesCount = DB::run("SELECT COUNT(*) FROM articles
         </div>
     </div>
     <?php
-    include_once('footer.php');
-    ?>
+include_once('footer.php');
+?>
 </div>
 </body>
-<?php //include_once('./lib/bottom-cache.php'); ?>
+<?php //include_once('./lib/bottom-cache.php');?>
 
 
 

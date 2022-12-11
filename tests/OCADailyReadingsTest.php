@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 //TODO - (2022-12-02) - implement real assertion specs/tests with PHPUnit/PHPSpec
@@ -14,13 +15,3 @@ $dailyReadingPage = new \Scraping\OCADailyReadings();
 
 $dailyReadingPage->fetchScriptureInfo();
 $dailyReadingPage->displayScriptureHTML();
-
-
-
-
-
-
-
-
-
-

@@ -7,7 +7,7 @@ error_reporting(E_ALL);
 
 use Scraping\AncientFaithPodcasts;
 
-include_once('../lib/BibleTools.php');
+include_once('../lib/BibleToolsTest.php');
 
 echo "<h2>Integration Tests</h2>";
 echo "<br /><small>Ancient Faith Podcasts</small><hr />";

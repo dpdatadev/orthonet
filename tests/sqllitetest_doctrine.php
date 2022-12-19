@@ -10,14 +10,24 @@ $attrs = ['driver' => 'pdo_sqlite', 'path' => 'orthonet_cachedb__22_12_10.db'];
 try {
     $conn = DriverManager::getConnection($attrs);
 
-    $queryBuilder = $conn->createQueryBuilder();
-    $queryBuilder->select('*')->from('testdata');
+    $conn->insert('testdata', array(
+        "id" => "2",
+        "data" => "my other data",
+    ));
 
-    $stm = $queryBuilder->execute();
-    $rows = $stm->fetchAll(FetchMode::NUMERIC);
+    if ($conn->lastInsertId() > 0)
+    {
+        $queryBuilder = $conn->createQueryBuilder();
+        $queryBuilder->select('*')->from('testdata');
 
-    foreach ($rows as $row) {
-        echo "{$row[0]} {$row[1]}\n";
+        $stm = $queryBuilder->execute();
+        $rows = $stm->fetchAll(FetchMode::NUMERIC);
+
+        foreach ($rows as $row) {
+            echo "{$row[0]} {$row[1]}\n";
+        }
     }
+
+
 } catch (\Doctrine\DBAL\Exception $e) {
 }

@@ -1,15 +1,23 @@
 <?php
-
+/** @noinspection ALL */
 declare(strict_types=1);
 
-//TODO - (12/10/2022) handle errors returned from file_get_contents/html - if a site can't be reached we need to handle that properly
+namespace ScrapingTest;
 
-namespace Scraping;
-
+//dependencies
+require_once './vendor/autoload.php';
 //opensource PHP web scraping library
+require_once 'simple_html_dom.php';
+
+
+use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\FetchMode;
 use http\Exception\UnexpectedValueException;
 
-include_once('simple_html_dom.php');
+//Daily generated SQLITE database to hold web scrape data
+//Somewhat of a cache for the frontend -
+//the goal is to scrape the same data less
+define('DAILY_DATABASE', "link_database_" . date('y_m_d') . ".db");
 
 //#[AllowDynamicProperties] PHP 8.2 will deprecate dynamic properties outside of stdClass
 class LinkElement
@@ -72,25 +80,36 @@ class LinkElement
 class PodcastLink extends LinkElement
 {
 }
+
 //OCA Daily Scripture Readings
 class ReadingLink extends LinkElement
 {
 }
+
 //OCA Life of Saint Readings
 class SaintLink extends LinkElement
 {
 }
 
-trait ValidatesSaintLinks
+trait ValidatesLinkTypes
 {
-    //utility functions for validating different types of links
-
-
-    //we only want to display "lives of the saints" links
-    //and not the daily troparia and kontakia (or other misc links)
-    public function isLifeLink($link): bool
+    //Traits can't have constants until PHP 8.2 I think....
+    public function getPodcastLinkPattern(): string
     {
-        if (str_contains($link, 'lives')) {
+        return '/podcasts/';
+    }
+    public function getScriptureLinkPattern(): string
+    {
+        return 'readings/daily';
+    }
+    public function getLivesOfSaintsLinkPattern(): string
+    {
+        return 'lives';
+    }
+
+    public function isValidLinkType(string $link, string $linkType)
+    {
+        if (str_contains($link, $linkType)){
             return true;
         } else {
             return false;
@@ -98,52 +117,114 @@ trait ValidatesSaintLinks
     }
 }
 
-trait ValidatesReadingLinks
+trait LinkElementDatabase
 {
-    //utility function
-    //check if the link contains "/readings/daily"
-    public function isScriptureLink($link): bool
+    private function getSqlite3Connection()
     {
-        if (str_contains($link, 'readings/daily')) {
-            return true;
-        } else {
-            return false;
+        $attrs = ['driver' => 'pdo_sqlite', 'path' => DAILY_DATABASE];
+        return DriverManager::getConnection($attrs);
+    }
+
+    //If the daily database doesn't exist then
+    //the client class can choose to scrape the links fresh
+    //and insert them into the database
+    //every page request after that will be pulling SQL
+    //which is much faster than constantly scraping for links
+    public function linkDatabaseExists(): bool
+    {
+        return file_exists(DAILY_DATABASE);
+    }
+
+    private function dropCreateTable(string $table): void
+    {
+        $conn = $this->getSqlite3Connection();
+        $conn->executeQuery('DROP TABLE IF EXISTS ' . $table . ';');
+        $conn->executeQuery('CREATE TABLE ' . $table . ' (link varchar(255), text varchar(1000) null, category varchar(100) null)');
+        $conn->close();
+    }
+
+    public function insertLinks(string $table, array $links): bool|int|string
+    {
+        $this->dropCreateTable($table);
+
+        $conn = $this->getSqlite3Connection();
+
+        foreach ($links as $link)
+        {
+            $conn->insert($table, array('link' => $link->getLink(), 'text' => $link->getText()));
         }
+
+        $lastInsertId = $conn->lastInsertId();
+
+        $conn->close();
+
+        return $lastInsertId;
+    }
+
+    public function getAllLinks(string $table): array
+    {
+        $databaseLinks = [];
+        $conn = $this->getSqlite3Connection();
+        $queryBuilder = $conn->createQueryBuilder();
+        $queryBuilder->select('*')->from($table);
+
+        $stm = $queryBuilder->execute();
+        foreach ($stm->fetchAll(FetchMode::NUMERIC) as $databaseLink)
+        {
+            $newLink = new LinkElement($databaseLink[0], $databaseLink[1]);
+            $databaseLinks[] = $newLink;
+        }
+
+        return $databaseLinks;
     }
 }
 
-trait ValidatesPodcastLinks
+trait DisplaysLinks
 {
-    //utility function
-    //check if the link contains "/readings/daily"
-    public function isPodcastLink($link): bool
+    public function displayLinkHTML(string $displayName, array $links): void
     {
-        if (str_contains($link, '/podcasts/')) {
-            return true;
-        } else {
-            return false;
+        echo "<div class='container'>";
+        echo "<br />";
+        echo "<h2>" . $displayName . "</h2>";
+        echo "<br />";
+
+        foreach ($links as $link) {
+            echo $link->displayHTML();
         }
+        echo "<ul>";
+
+        echo "</ul>";
+        echo "<br />";
+        echo "</div>";
+        echo "<hr />";
     }
 }
 
 //Recent Podcast Episodes published by Ancient Faith
 class AncientFaithPodcasts
 {
-    use ValidatesPodcastLinks;
+    //provides different types of link patterns
+    //for verification
+    use ValidatesLinkTypes;
 
+    //Display HTML table of link elements
+    //whether they be freshly scraped or from the database
+    use DisplaysLinks;
+
+    //Access to cached web scrape data in SQLITE
+    use LinkElementDatabase;
+
+    //most recent podcasts from Ancient Faith Ministries
     private const URL = "https://www.ancientfaith.com/podcasts#af-recent-episodes";
 
+    //harvested podcast links
     private $podcastLinks;
-    //array of prepared and filtered podcasts to display
-    //TODO - configure this without hardcoding (12/3/2022)
-    //private $podcastLinksDisplay;
+    //loaded web page
     private $html;
 
     public function __construct()
     {
         $this->podcastLinks = array();
-
-        //$this->podcastLinksDisplay = array();
 
         $this->html = file_get_html(self::URL);
     }
@@ -158,7 +239,7 @@ class AncientFaithPodcasts
         $podcasts = $this->html->find('a');
 
         foreach ($podcasts as $podcast) {
-            if ($this->isPodcastLink($podcast->href)) {
+            if ($this->isValidLinkType($podcast->href, $this->getPodcastLinkPattern())) {
                 $podcastLink = "https://www.ancientfaith.com" . $podcast->href;
                 $podcastText = $podcast->plaintext;
 
@@ -190,28 +271,41 @@ class AncientFaithPodcasts
         }
     }
 
+    public function saveLinksToDatabase(string $table): void
+    {
+        if (!$this->linkDatabaseExists())
+        {
+            $this->fetchPodcastInfo();
+            $this->preparePodcastHTML();
+            $this->insertLinks($table, $this->podcastLinks);
+        }
+    }
+
     public function displayPodcastHTML()
     {
-        echo "<div class='container'>";
-        echo "<br />";
-        echo "<h2>Recent Podcasts</h2>";
-        echo "<br />";
+        $this->displayLinkHTML('Recent Podcasts', $this->podcastLinks);
+    }
 
-        foreach ($this->podcastLinks as $podcastLink) {
-            echo $podcastLink->displayHTML();
-        }
-        echo "<ul>";
 
-        echo "</ul>";
-        echo "<br />";
-        echo "</div>";
-        echo "<hr />";
+    public function displayDatabasePodcastLinks(string $table): void
+    {
+       $databaseLinks = $this->getAllLinks($table);
+       $this->displayLinkHTML('Recent Podcasts', $databaseLinks);
     }
 }
 
 class OCADailyReadings
 {
-    use ValidatesReadingLinks;
+    //provides different types of link patterns
+    //for verification
+    use ValidatesLinkTypes;
+
+    //Display HTML table of link elements
+    //whether they be freshly scraped or from the database
+    use DisplaysLinks;
+
+    //Access to cached web scrape data in SQLITE
+    use LinkElementDatabase;
 
     private const URL = "https://www.oca.org/readings";
 
@@ -235,7 +329,7 @@ class OCADailyReadings
         //now sift through them and find out which ones are for
         //the daily scriptures
         foreach ($readings as $reading) {
-            if ($this->isScriptureLink($reading->href)) {
+            if ($this->isValidLinkType($reading->href, $this->getScriptureLinkPattern())) {
                 $readingText = $reading->plaintext;
                 $readingLink = "https://www.oca.org" . $reading->href;
                 //create new scripture link
@@ -246,28 +340,39 @@ class OCADailyReadings
         }
     }
 
+    public function saveLinksToDatabase(string $table): void
+    {
+        if (!$this->linkDatabaseExists())
+        {
+            $this->insertLinks($table, $this->readingLinks);
+        }
+    }
+
     public function displayScriptureHTML()
     {
-        echo "<div class='container'>";
-        echo "<br />";
-        echo "<h2>Daily Readings</h2>";
-        echo "<br />";
+        $this->displayLinkHTML('Recent Readings', $this->readingLinks);
+    }
 
 
-        echo "<ul>";
-        foreach ($this->readingLinks as $dailyScriptureReading) {
-            echo $dailyScriptureReading->displayHTML();
-        }
-        echo "</ul>";
-        echo "<br />";
-        echo "</div>";
-        echo "<hr />";
+    public function displayScriptureDatabaseLinks(string $table): void
+    {
+        $databaseLinks = $this->getAllLinks($table);
+        $this->displayLinkHTML('Recent Readings', $databaseLinks);
     }
 }
 
 class OCALivesOfSaints
 {
-    use ValidatesSaintLinks;
+    //provides different types of link patterns
+    //for verification
+    use ValidatesLinkTypes;
+
+    //Display HTML table of link elements
+    //whether they be freshly scraped or from the database
+    use DisplaysLinks;
+
+    //Access to cached web scrape data in SQLITE
+    use LinkElementDatabase;
 
     private const URL = "https://www.oca.org/saints/lives/";
 
@@ -298,7 +403,7 @@ class OCALivesOfSaints
 
         //construct fully qualified links for each of the saints
         foreach ($this->saintLinks as $link) {
-            if ($this->isLifeLink($link->href)) {
+            if ($this->isValidLinkType($link->href, $this->getLivesOfSaintsLinkPattern())) {
                 $saintLink = "https://www.oca.org" . $link->href;
                 $this->saintLinksSort[] = $saintLink;
             }
@@ -347,22 +452,24 @@ class OCALivesOfSaints
         }
     }
 
-    public function displaySaintHtml()
+    public function saveLinksToDatabase(string $table): void
     {
-        echo "<div class='container'>";
-        echo "<br />";
-        echo "<h2>Daily Saints</h2>";
-        echo "<br />";
-
-
-        echo "<ul>";
-        foreach ($this->saintSnippets as $saint) {
-            echo $saint->displayHTML();
+        if (!$this->linkDatabaseExists())
+        {
+            $this->insertLinks($table, $this->saintSnippets);
         }
-        echo "</ul>";
-        echo "<br />";
-        echo "</div>";
-        echo "<hr />";
+    }
+
+    public function displaySaintHTML()
+    {
+        $this->displayLinkHTML('Daily Saints', $this->saintSnippets);
+    }
+
+
+    public function displaySaintDatabaseLinks(string $table): void
+    {
+        $databaseLinks = $this->getAllLinks($table);
+        $this->displayLinkHTML('Daily Saints', $this->saintSnippets);
     }
 }
 

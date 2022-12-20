@@ -9,9 +9,12 @@ require_once './vendor/autoload.php';
 //opensource PHP web scraping library
 require_once 'simple_html_dom.php';
 
+use function file_get_html as fetch_html;
+
 
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\FetchMode;
+use http\Exception\InvalidArgumentException;
 use http\Exception\UnexpectedValueException;
 
 //Daily generated SQLITE database to hold web scrape data
@@ -91,7 +94,7 @@ class SaintLink extends LinkElement
 {
 }
 
-trait ValidatesLinkTypes
+trait ValidatesOrthodoxLinks
 {
     //Traits can't have constants until PHP 8.2 I think....
     public function getPodcastLinkPattern(): string
@@ -133,11 +136,11 @@ trait LinkElementDatabase
 
     public function setDebugOff(): void
     {
-        if ($this->isDebugOn() === true)
-        {
+        if ($this->isDebugOn() === true) {
             $this->debugFlag = false;
         }
     }
+
     private function getSqlite3Connection()
     {
         $attrs = ['driver' => 'pdo_sqlite', 'path' => DAILY_DATABASE];
@@ -185,8 +188,7 @@ trait LinkElementDatabase
     {
         $conn = $this->getSqlite3Connection();
 
-        foreach ($links as $link)
-        {
+        foreach ($links as $link) {
             $conn->insert($table, array('link' => $link->getLink(), 'text' => $link->getText(), 'category' => $category));
         }
 
@@ -204,19 +206,133 @@ trait LinkElementDatabase
         $queryBuilder = $conn->createQueryBuilder();
         $queryBuilder->select('*')->from($table)->where('category = ?')->setParameter(0, $category);
 
-        if ($this->isDebugOn() === true)
-        {
-            echo $queryBuilder->getSQL() . " " . $queryBuilder->getParameter(0);
+        if ($this->isDebugOn() === true) {
+            echo $queryBuilder->getSQL() . " (param): " . $queryBuilder->getParameter(0);
         }
 
         $stm = $queryBuilder->execute();
-        foreach ($stm->fetchAll(FetchMode::NUMERIC) as $databaseLink)
-        {
+        foreach ($stm->fetchAll(FetchMode::NUMERIC) as $databaseLink) {
             $newLink = new LinkElement($databaseLink[0], $databaseLink[1]);
             $databaseLinks[] = $newLink;
         }
 
         return $databaseLinks;
+    }
+}
+
+//A Scraper.
+//Any class or abstract class could define specific configurations
+//for scraping any kind of websites for whatever reason.
+interface Scraper
+{
+    public function getUrl(): string;//Scrapers will provide the configured URL
+    public function getHtml(): string;//Scrapers will provide the raw webpage HTML
+    public function fetchInfo(): void;//Scrapers will fetch information from the HTML
+    public function prepareInfo(): void;//Scrapers will "prepare" the data (any customizations)
+    public function getScrapeData(): array;//Scrapers will return the raw array of scrape data
+    public function displayScrapeHTML(): void;//Scrapers will be able to display the scraped HTML
+
+}
+
+interface ScrapeFactory
+{
+    public static function createScraper(string $scrapeType): Scraper;
+}
+
+class OrthodoxScrapeFactory implements ScrapeFactory
+{
+    public static function createScraper(string $scrapeType): Scraper
+    {
+        // TODO: Implement createScraper() method.
+    }
+}
+
+
+
+//A Scraper which specializes in HTML Links
+//It is neccessary to derive this class for further customization
+//To work with certain types of links
+abstract class LinkElementScraper implements Scraper
+{
+    //Scrape data are li/a/href link elements
+    private array $scrapeLinks;
+
+    public function __construct()
+    {
+
+    }
+
+    public abstract function getUrl(): string;
+    public abstract function getHtml(): string;
+    public abstract function fetchInfo(): void;
+    public abstract function prepareInfo(): void;
+    public function getScrapeData(): array
+    {
+        return $this->scrapeLinks;
+    }
+    public abstract function displayScrapeHTML(): void;
+}
+
+//Link Scraper which can engage with a SQLITE database
+//Optionally if one wants to use SQLITE for their webscraper
+//Then derive this class and work with the data
+abstract class LinkElementDatabaseScraper extends LinkElementScraper
+{
+    //Access to cached web scrape data in SQLITE
+    use LinkElementDatabase;
+
+    //webpage to fetch
+    private $scrapeUrl;
+    //fetched webpage
+    private $html;
+
+    public function __construct(string $scrapeUrl)
+    {
+        if (filter_var($scrapeUrl, FILTER_VALIDATE_URL, FILTER_FLAG_HOST_REQUIRED) === true)
+        {
+            $this->scrapeUrl = $scrapeUrl;
+            $this->html = fetch_html($scrapeUrl);
+        } else {
+            throw new InvalidArgumentException("SCRAPE URL must be valid URI :: HOST REQUIRED");
+        }
+    }
+
+    public function getUrl(): string
+    {
+        return $this->scrapeUrl;
+    }
+
+    public function getHtml(): string
+    {
+        return $this->html;
+    }
+
+    //TODO
+
+    public static function saveLinksToDatabase(string $table, array $links, string $category): void
+    {
+        if (!self::linkDatabaseExists())
+        {
+            //If the database doesn't exist
+            //then we definitely need to get the freshest data and load the links
+            self::fetchFreshData();
+            self::dropCreateTable($table);
+            self::insertLinks($table, $links, $category);
+        }
+    }
+}
+
+//Webscraper meant to be derived by classes which will be used
+//to scrape Orthodox Christian websites
+class OrthodoxWebScraper extends LinkElementDatabaseScraper
+{
+    public function fetchInfo(): void
+    {
+
+    }
+    public function prepareInfo(): void
+    {
+
     }
 }
 
@@ -246,7 +362,7 @@ class AncientFaithPodcasts
 {
     //provides different types of link patterns
     //for verification
-    use ValidatesLinkTypes;
+    use ValidatesOrthodoxLinks;
 
     //Display HTML table of link elements
     //whether they be freshly scraped or from the database
@@ -318,7 +434,7 @@ class AncientFaithPodcasts
         $this->preparePodcastHTML();
     }
 
-    public function savePodCastLinksToDatabase(string $table): void
+    public static function savePodCastLinksToDatabase(string $table): void
     {
 
         //We only load the scrape data once per day
@@ -326,15 +442,14 @@ class AncientFaithPodcasts
         //For all other page hits - the links already stored (cached)
         //in the database will be displayed.
         //We are now hitting the site far less for the same data!
-        if (!$this->linkDatabaseExists())
+        if (!self::linkDatabaseExists())
         {
             //If the database doesn't exist
             //then we definitely need to get the freshest data and load the links
-            $this->fetchFreshData();
-            $this->dropCreateTable($table);
-            $this->insertLinks($table, $this->podcastLinks, 'podcasts');
+            self::fetchFreshData();
+            self::dropCreateTable($table);
+            self::insertLinks($table, self::podcastLinks, 'podcasts');
         }
-
     }
 
     public function displayPodcastHTML()
@@ -354,7 +469,7 @@ class OCADailyReadings
 {
     //provides different types of link patterns
     //for verification
-    use ValidatesLinkTypes;
+    use ValidatesOrthodoxLinks;
 
     //Display HTML table of link elements
     //whether they be freshly scraped or from the database
@@ -414,7 +529,7 @@ class OCADailyReadings
             //If the database doesn't exist
             //then we definitely need to get the freshest data and load the links
             $this->fetchFreshData();
-            $this->dropCreateTable($table);
+            //$this->dropCreateTable($table);
             $this->insertLinks($table, $this->readingLinks, 'scriptures');
         }
 
@@ -437,7 +552,7 @@ class OCALivesOfSaints
 {
     //provides different types of link patterns
     //for verification
-    use ValidatesLinkTypes;
+    use ValidatesOrthodoxLinks;
 
     //Display HTML table of link elements
     //whether they be freshly scraped or from the database
@@ -526,7 +641,7 @@ class OCALivesOfSaints
             //If the database doesn't exist
             //then we definitely need to get the freshest data and load the links
             $this->fetchFreshData();
-            $this->dropCreateTable($table);
+            //$this->dropCreateTable($table);
             $this->insertLinks($table, $this->saintSnippets, 'saints');
         }
 

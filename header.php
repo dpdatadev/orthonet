@@ -1,5 +1,5 @@
 <?php
-require_once './lib/BibleTools.php';
+require_once 'BibleTools.php';
 use Scraping\BibleGateway as Bible;
 
 error_reporting(E_ALL);

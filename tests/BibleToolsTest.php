@@ -119,6 +119,25 @@ trait ValidatesLinkTypes
 
 trait LinkElementDatabase
 {
+    private bool $debugFlag = false;
+
+    public function isDebugOn(): bool
+    {
+        return $this->debugFlag;
+    }
+
+    public function setDebugOn(): void
+    {
+        $this->debugFlag = true;
+    }
+
+    public function setDebugOff(): void
+    {
+        if ($this->isDebugOn() === true)
+        {
+            $this->debugFlag = false;
+        }
+    }
     private function getSqlite3Connection()
     {
         $attrs = ['driver' => 'pdo_sqlite', 'path' => DAILY_DATABASE];
@@ -135,7 +154,25 @@ trait LinkElementDatabase
         return file_exists(DAILY_DATABASE);
     }
 
-    private function dropCreateTable(string $table): void
+    public function getDatabaseLinkCount(string $linkTable): int
+    {
+        $conn = $this->getSqlite3Connection();
+        $query = "SELECT * FROM " . $linkTable;
+        $num_rows = $conn->executeQuery($query)->rowCount();
+        return $num_rows;
+    }
+
+    /*
+    public function getDatabaseLinkCountCategory(string $linkTable, string $category): int
+    {
+        $conn = $this->getSqlite3Connection();
+        $query = sprintf("SELECT * FROM %s WHERE category = %s", $linkTable, "'" . $category . "'");
+        $num_rows = $conn->executeQuery($query)->rowCount();
+        return $num_rows;
+    }
+    */
+
+    public function dropCreateTable(string $table): void
     {
         $conn = $this->getSqlite3Connection();
         $conn->executeQuery('DROP TABLE IF EXISTS ' . $table . ';');
@@ -143,15 +180,14 @@ trait LinkElementDatabase
         $conn->close();
     }
 
-    public function insertLinks(string $table, array $links): bool|int|string
-    {
-        $this->dropCreateTable($table);
 
+    public function insertLinks(string $table, array $links, string $category): bool|int|string
+    {
         $conn = $this->getSqlite3Connection();
 
         foreach ($links as $link)
         {
-            $conn->insert($table, array('link' => $link->getLink(), 'text' => $link->getText()));
+            $conn->insert($table, array('link' => $link->getLink(), 'text' => $link->getText(), 'category' => $category));
         }
 
         $lastInsertId = $conn->lastInsertId();
@@ -161,12 +197,17 @@ trait LinkElementDatabase
         return $lastInsertId;
     }
 
-    public function getAllLinks(string $table): array
+    public function getAllLinks(string $table, string $category): array
     {
         $databaseLinks = [];
         $conn = $this->getSqlite3Connection();
         $queryBuilder = $conn->createQueryBuilder();
-        $queryBuilder->select('*')->from($table);
+        $queryBuilder->select('*')->from($table)->where('category = ?')->setParameter(0, $category);
+
+        if ($this->isDebugOn() === true)
+        {
+            echo $queryBuilder->getSQL() . " " . $queryBuilder->getParameter(0);
+        }
 
         $stm = $queryBuilder->execute();
         foreach ($stm->fetchAll(FetchMode::NUMERIC) as $databaseLink)
@@ -271,14 +312,29 @@ class AncientFaithPodcasts
         }
     }
 
-    public function saveLinksToDatabase(string $table): void
+    private function fetchFreshData() : void
     {
+        $this->fetchPodcastInfo();
+        $this->preparePodcastHTML();
+    }
+
+    public function savePodCastLinksToDatabase(string $table): void
+    {
+
+        //We only load the scrape data once per day
+        //When the daily database name changes out
+        //For all other page hits - the links already stored (cached)
+        //in the database will be displayed.
+        //We are now hitting the site far less for the same data!
         if (!$this->linkDatabaseExists())
         {
-            $this->fetchPodcastInfo();
-            $this->preparePodcastHTML();
-            $this->insertLinks($table, $this->podcastLinks);
+            //If the database doesn't exist
+            //then we definitely need to get the freshest data and load the links
+            $this->fetchFreshData();
+            $this->dropCreateTable($table);
+            $this->insertLinks($table, $this->podcastLinks, 'podcasts');
         }
+
     }
 
     public function displayPodcastHTML()
@@ -289,7 +345,7 @@ class AncientFaithPodcasts
 
     public function displayDatabasePodcastLinks(string $table): void
     {
-       $databaseLinks = $this->getAllLinks($table);
+       $databaseLinks = $this->getAllLinks($table, 'podcasts');
        $this->displayLinkHTML('Recent Podcasts', $databaseLinks);
     }
 }
@@ -340,12 +396,28 @@ class OCADailyReadings
         }
     }
 
-    public function saveLinksToDatabase(string $table): void
+    private function fetchFreshData() : void
     {
+        $this->fetchScriptureInfo();
+    }
+    //TODO
+    public function saveScriptureLinksToDatabase(string $table): void
+    {
+
+        //We only load the scrape data once per day
+        //When the daily database name changes out
+        //For all other page hits - the links already stored (cached)
+        //in the database will be displayed.
+        //We are now hitting the site far less for the same data!
         if (!$this->linkDatabaseExists())
         {
-            $this->insertLinks($table, $this->readingLinks);
+            //If the database doesn't exist
+            //then we definitely need to get the freshest data and load the links
+            $this->fetchFreshData();
+            $this->dropCreateTable($table);
+            $this->insertLinks($table, $this->readingLinks, 'scriptures');
         }
+
     }
 
     public function displayScriptureHTML()
@@ -356,7 +428,7 @@ class OCADailyReadings
 
     public function displayScriptureDatabaseLinks(string $table): void
     {
-        $databaseLinks = $this->getAllLinks($table);
+        $databaseLinks = $this->getAllLinks($table, 'scriptures');
         $this->displayLinkHTML('Recent Readings', $databaseLinks);
     }
 }
@@ -419,25 +491,8 @@ class OCALivesOfSaints
         //sort the links
         //this order will match the second array
         asort($this->saintLinksSort);
-        //We need to have the keys reset
-        //to match the same integer index values as the second array.
-        //We do this because we're going to iterate over the arrays
-        //and create an object with each element of each array
-        //corresponding to a property ex. Object(link, text) -
-        //link is from array1, text is from array2.
-        //removed 12/2/2022
-        //array_values($this->saintLinksSort);
-
-        //there could be varying number of saints each day
-        //we will only work with the top 3
-        //removed 12/1/2022, may come back in the future
-        //array_splice($this->saintNamesSort, 0, 3);
-        //array_splice($this->saintLinksSort, 0, 3);
-
-
-        //now we will start accessing the arrays to build the display objects
         try {
-            //we must ensure that the above operations were successful
+            //TODO, rethink this
             if (count($this->saintNamesSort) == count($this->saintLinksSort)) {
                 for ($i = 0; $i < count($this->saintNamesSort); $i++) {
                     $saintLink = $this->saintLinksSort[$i];
@@ -452,12 +507,29 @@ class OCALivesOfSaints
         }
     }
 
-    public function saveLinksToDatabase(string $table): void
+    private function fetchFreshData() : void
     {
+        $this->fetchSaintInfo();
+        $this->prepareSaintHtml();
+    }
+
+    public function saveSaintLinksToDatabase(string $table): void
+    {
+
+        //We only load the scrape data once per day
+        //When the daily database name changes out
+        //For all other page hits - the links already stored (cached)
+        //in the database will be displayed.
+        //We are now hitting the site far less for the same data!
         if (!$this->linkDatabaseExists())
         {
-            $this->insertLinks($table, $this->saintSnippets);
+            //If the database doesn't exist
+            //then we definitely need to get the freshest data and load the links
+            $this->fetchFreshData();
+            $this->dropCreateTable($table);
+            $this->insertLinks($table, $this->saintSnippets, 'saints');
         }
+
     }
 
     public function displaySaintHTML()
@@ -468,8 +540,8 @@ class OCALivesOfSaints
 
     public function displaySaintDatabaseLinks(string $table): void
     {
-        $databaseLinks = $this->getAllLinks($table);
-        $this->displayLinkHTML('Daily Saints', $this->saintSnippets);
+        $databaseLinks = $this->getAllLinks($table, 'saints');
+        $this->displayLinkHTML('Daily Saints', $databaseLinks);
     }
 }
 

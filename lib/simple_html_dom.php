@@ -45,6 +45,8 @@ defined('DEFAULT_SPAN_TEXT') || define('DEFAULT_SPAN_TEXT', ' ');
 defined('MAX_FILE_SIZE') || define('MAX_FILE_SIZE', 600000);
 define('HDOM_SMARTY_AS_TEXT', 1);
 
+ini_set('default_socket_timeout', 900);
+
 function file_get_html(
     $url,
     $use_include_path = false,

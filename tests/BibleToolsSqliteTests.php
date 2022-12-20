@@ -9,15 +9,18 @@ use ScrapingTest\OCALivesOfSaints;
 
 
 $ancientFaithPodcastPage = new AncientFaithPodcasts();
+$ancientFaithPodcastPage->setDebugOn();
+$ancientFaithPodcastPage->savePodCastLinksToDatabase('web_scrape_links');
+$ancientFaithPodcastPage->displayDatabasePodcastLinks('web_scrape_links');
 
-$ancientFaithPodcastPage->saveLinksToDatabase('ancient_faith_podcasts');
-$ancientFaithPodcastPage->displayDatabasePodcastLinks('ancient_faith_podcasts');
-
-
-/*
 $ocaDailyReadings = new OCADailyReadings();
-$ocaDailyReadings->fetchScriptureInfo();
-$ocaDailyReadings->saveLinksToDatabase('oca_daily_readings');
-$ocaDailyReadings->displayScriptureDatabaseLinks('oca_daily_readings');
-*/
+$ocaDailyReadings->setDebugOn();
+$ocaDailyReadings->saveScriptureLinksToDatabase('web_scrape_links');
+$ocaDailyReadings->displayScriptureDatabaseLinks('web_scrape_links');
+
+$ocaDailySaints = new OCALivesOfSaints();
+$ocaDailySaints->setDebugOn();
+$ocaDailySaints->saveSaintLinksToDatabase('web_scrape_links');
+$ocaDailySaints->displaySaintDatabaseLinks('web_scrape_links');
+
 

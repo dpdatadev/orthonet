@@ -66,8 +66,7 @@ $saintsOfTheDay->prepareSaintHtml();
 
 //construct Ancient Faith podcast HTML
 $recentPodcasts = new PodcastsPage();
-$recentPodcasts->fetchPodcastInfo();
-$recentPodcasts->preparePodcastHTML();
+$recentPodcasts->saveLinksToDatabase('ancient_faith_podcasts');
 
 $ancientFaithPodcastCount = $recentPodcasts->getPodcastLinkCount();
 ?>
@@ -130,7 +129,7 @@ $ancientFaithPodcastCount = $recentPodcasts->getPodcastLinkCount();
             <!--Display the OCA daily Lives of Saints-->
             <?php $saintsOfTheDay->displaySaintHtml(); ?>
             <!--Display the newest Ancient Faith podcast episodes-->
-            <?php $recentPodcasts->displayPodcastHTML(); ?>
+            <?php $recentPodcasts->displayDatabasePodcastLinks('ancient_faith_podcasts'); ?>
 
             <?php echo "<div class='text-center'><span class='badge badge-secondary' style='color:yellow'><i><b>Last Updated: " . date("Y-m-d") . "</b></i></span></div><br>"; ?>
         </div>

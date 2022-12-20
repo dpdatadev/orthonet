@@ -1,17 +1,23 @@
 <?php
+/** @noinspection ALL */
 declare(strict_types=1);
-//TODO - (12/10/2022) handle errors returned from file_get_contents/html - if a site can't be reached we need to handle that properly
 
 namespace Scraping;
-require '../vendor/autoload.php';
 
+//dependencies
+require_once './vendor/autoload.php';
 //opensource PHP web scraping library
+require_once './lib/simple_html_dom.php';
+
+
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\FetchMode;
 use http\Exception\UnexpectedValueException;
-use phpDocumentor\Reflection\Types\Boolean;
 
-include_once('simple_html_dom.php');
+//Daily generated SQLITE database to hold web scrape data
+//Somewhat of a cache for the frontend -
+//the goal is to scrape the same data less
+define('DAILY_DATABASE', "link_database_" . date('y_m_d') . ".db");
 
 //#[AllowDynamicProperties] PHP 8.2 will deprecate dynamic properties outside of stdClass
 class LinkElement
@@ -116,21 +122,33 @@ trait ValidatesReadingLinks
     }
 }
 
-trait ValidatesPodcastLinks
+
+
+trait ValidatesLinkTypes
 {
-    //utility function
-    //check if the link contains "/readings/daily"
-    public function isPodcastLink($link): bool
+    //Traits can't have constants until PHP 8.2 I think....
+    public function getPodcastLinkPattern(): string
     {
-        if (str_contains($link, '/podcasts/')) {
+        return '/podcasts/';
+    }
+    public function getScriptureLinkPattern(): string
+    {
+        return 'readings/daily';
+    }
+    public function getLivesOfSaintsLinkPattern(): string
+    {
+        return 'lives';
+    }
+
+    public function isValidLinkType(string $link, string $linkType)
+    {
+        if (str_contains($link, $linkType)){
             return true;
         } else {
             return false;
         }
     }
 }
-
-define('DAILY_DATABASE', "link_database_" . date('y_m_d') . ".db");
 
 trait LinkElementDatabase
 {
@@ -154,7 +172,7 @@ trait LinkElementDatabase
     {
         $conn = $this->getSqlite3Connection();
         $conn->executeQuery('DROP TABLE IF EXISTS ' . $table . ';');
-        $conn->executeQuery('CREATE TABLE ' . $table . ' (link varchar(255), text varchar(1000) null)');
+        $conn->executeQuery('CREATE TABLE ' . $table . ' (link varchar(255), text varchar(1000) null, category varchar(100) null)');
         $conn->close();
     }
 
@@ -194,25 +212,52 @@ trait LinkElementDatabase
     }
 }
 
+trait DisplaysLinks
+{
+    public function displayLinkHTML(string $displayName, array $links): void
+    {
+        echo "<div class='container'>";
+        echo "<br />";
+        echo "<h2>" . $displayName . "</h2>";
+        echo "<br />";
+
+        foreach ($links as $link) {
+            echo $link->displayHTML();
+        }
+        echo "<ul>";
+
+        echo "</ul>";
+        echo "<br />";
+        echo "</div>";
+        echo "<hr />";
+    }
+}
+
 //Recent Podcast Episodes published by Ancient Faith
 class AncientFaithPodcasts
 {
-    use ValidatesPodcastLinks;
+    //provides different types of link patterns
+    //for verification
+    use ValidatesLinkTypes;
+
+    //Display HTML table of link elements
+    //whether they be freshly scraped or from the database
+    use DisplaysLinks;
+
+    //Access to cached web scrape data in SQLITE
     use LinkElementDatabase;
 
+    //most recent podcasts from Ancient Faith Ministries
     private const URL = "https://www.ancientfaith.com/podcasts#af-recent-episodes";
 
+    //harvested podcast links
     private $podcastLinks;
-    //array of prepared and filtered podcasts to display
-    //TODO - configure this without hardcoding (12/3/2022)
-    //private $podcastLinksDisplay;
+    //loaded web page
     private $html;
 
     public function __construct()
     {
         $this->podcastLinks = array();
-
-        //$this->podcastLinksDisplay = array();
 
         $this->html = file_get_html(self::URL);
     }
@@ -227,7 +272,7 @@ class AncientFaithPodcasts
         $podcasts = $this->html->find('a');
 
         foreach ($podcasts as $podcast) {
-            if ($this->isPodcastLink($podcast->href)) {
+            if ($this->isValidLinkType($podcast->href, $this->getPodcastLinkPattern())) {
                 $podcastLink = "https://www.ancientfaith.com" . $podcast->href;
                 $podcastText = $podcast->plaintext;
 
@@ -259,50 +304,29 @@ class AncientFaithPodcasts
         }
     }
 
-    public function displayPodcastHTML()
-    {
-        echo "<div class='container'>";
-        echo "<br />";
-        echo "<h2>Recent Podcasts</h2>";
-        echo "<br />";
-
-        foreach ($this->podcastLinks as $podcastLink) {
-            echo $podcastLink->displayHTML();
-        }
-        echo "<ul>";
-
-        echo "</ul>";
-        echo "<br />";
-        echo "</div>";
-        echo "<hr />";
-    }
-
     public function saveLinksToDatabase(string $table): void
     {
         if (!$this->linkDatabaseExists())
         {
+            $this->fetchPodcastInfo();
+            $this->preparePodcastHTML();
             $this->insertLinks($table, $this->podcastLinks);
         }
     }
 
-    public function displayDatabaseLinks(string $table): void
+    public function displayPodcastHTML()
     {
-        echo "<div class='container'>";
-        echo "<br />";
-        echo "<h2>Recent Podcasts</h2>";
-        echo "<br />";
+        $this->displayLinkHTML('Recent Podcasts', $this->podcastLinks);
+    }
 
-        foreach ($this->getAllLinks($table) as $link) {
-            echo $link->displayHTML();
-        }
-        echo "<ul>";
 
-        echo "</ul>";
-        echo "<br />";
-        echo "</div>";
-        echo "<hr />";
+    public function displayDatabasePodcastLinks(string $table): void
+    {
+        $databaseLinks = $this->getAllLinks($table);
+        $this->displayLinkHTML('Recent Podcasts', $databaseLinks);
     }
 }
+
 
 class OCADailyReadings
 {

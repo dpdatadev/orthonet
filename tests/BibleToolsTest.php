@@ -228,7 +228,7 @@ interface Scraper
     //Scraper clients will provide the configured URL
     public function getUrl(): string;
     //Scraper clients will provide the raw webpage HTML
-    public function getHtml(): string;
+    public function getHtml(): mixed;
     //Scraper clients will fetch information from the HTML
     //using XPATH or CSS SELECT
     public function fetchInfo(string $pageParam): void;
@@ -256,11 +256,13 @@ class OrthodoxScraperFactory implements ScraperFactory
 {
     public static function createScraper(string $scraperType, string $scrapeUrl): Scraper
     {
-        $scraperClient = match($scrapeType) {
-            'PodCast' => new AncientFaithPodcastScraper($scrapeUrl),
+        $scraperClient = match($scraperType) {
+            'Podcasts' => new AncientFaithPodcastScraper($scrapeUrl),
             'Saints' => new OCALivesOfSaints(),
             'Readings' => new OCADailyReadings()
         };
+
+        return $scraperClient;
     }
 }
 
@@ -283,7 +285,7 @@ abstract class LinkElementScraper implements Scraper
     }
 
     public abstract function getUrl(): string;
-    public abstract function getHtml(): string;
+    public abstract function getHtml(): mixed;
     public abstract function fetchInfo(string $pageParam): void;
     public abstract function prepareInfo(): void;
     public function getScrapeData(): array
@@ -300,11 +302,10 @@ abstract class LinkElementScraper implements Scraper
     //Scraper clients that specialize in links will provide vaildation rules for what they're searching for on the page
     public function validatePageParam(string $pageParam): bool
     {
-        $isValid;
-        if (!str_contains($pageParam, 'a' || !str_contains($pageParam, 'li') || !str_contains($pageParam, 'href')))
+        $isValid = false;
+
+        if (str_contains($pageParam, 'a') || str_contains($pageParam, 'li') || str_contains($pageParam, 'href'))
         {
-            $isValid = false;
-        } else {
             $isValid = true;
         }
 
@@ -343,7 +344,7 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
         return $this->scrapeUrl;
     }
 
-    public function getHtml(): string
+    public function getHtml(): mixed
     {
         return $this->html;
     }

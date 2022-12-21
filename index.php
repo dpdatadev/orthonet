@@ -30,7 +30,6 @@ if (isset($_SESSION["username"])) {
     $pageUserRegisterDisplay = "<p><button class='btn'><a href='register.php' />Register</button></p>";
 }
 
-//Tool for getting verse of the day and searching scripture passages from BibleGateway.com
 $orthoChristianArticlesCount = DB::run("SELECT COUNT(*) FROM articles.orthochristian;")->fetch();
 $orthodoxChristianTheologyArticlesCount = DB::run("SELECT COUNT(*) FROM articles.orthodoxchristiantheology;")->fetch();
 ?>

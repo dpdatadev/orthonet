@@ -225,12 +225,22 @@ trait LinkElementDatabase
 //for scraping any kind of websites for whatever reason.
 interface Scraper
 {
-    public function getUrl(): string;//Scrapers will provide the configured URL
-    public function getHtml(): string;//Scrapers will provide the raw webpage HTML
-    public function fetchInfo(): void;//Scrapers will fetch information from the HTML
-    public function prepareInfo(): void;//Scrapers will "prepare" the data (any customizations)
-    public function getScrapeData(): array;//Scrapers will return the raw array of scrape data
-    public function displayScrapeHTML(): void;//Scrapers will be able to display the scraped HTML
+    //Scraper clients will provide the configured URL
+    public function getUrl(): string;
+    //Scraper clients will provide the raw webpage HTML
+    public function getHtml(): string;
+    //Scraper clients will fetch information from the HTML
+    public function fetchInfo(string $pageParam): void;
+    //Scraper clients will be able to customize how they verify what they're searching for
+    public function validatePageParam(string $pageParam): bool;
+    //Scraper clients  will "prepare" the data (any customizations)
+    public function prepareInfo(): void;
+    //Scraper clients will be able to swap out the underlying array with a custom derived one
+    public function setScrapeData(array $data): void;
+    //Scraper clients will return the raw array of scrape data
+    public function getScrapeData(): array;
+    //Scraper clients will be able to display the scraped HTML
+    public function displayScrapeHTML(): void;
 
 }
 
@@ -254,6 +264,9 @@ class OrthodoxScrapeFactory implements ScrapeFactory
 //To work with certain types of links
 abstract class LinkElementScraper implements Scraper
 {
+    //Display HTML table of link elements
+    //whether they be freshly scraped or from the database
+    use DisplaysLinks;
     //Scrape data are li/a/href link elements
     private array $scrapeLinks;
 
@@ -270,7 +283,26 @@ abstract class LinkElementScraper implements Scraper
     {
         return $this->scrapeLinks;
     }
+    public function setScrapeData(array $data): void
+    {
+        $this->scrapeLinks = $data;
+    }
+
     public abstract function displayScrapeHTML(): void;
+
+    //Scraper clients that specialize in links will provide vaildation rules for what they're searching for on the page
+    public function validatePageParam(string $pageParam): bool
+    {
+        $isValid;
+        if (!str_contains($pageParam, 'a' || !str_contains($pageParam, 'li') || !str_contains($pageParam, 'href')))
+        {
+            $isValid = false;
+        } else {
+            $isValid = true;
+        }
+
+        return $isValid;
+    }
 }
 
 //Link Scraper which can engage with a SQLITE database
@@ -307,8 +339,6 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
         return $this->html;
     }
 
-    //TODO
-
     public static function saveLinksToDatabase(string $table, array $links, string $category): void
     {
         if (!self::linkDatabaseExists())
@@ -324,16 +354,73 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
 
 //Webscraper meant to be derived by classes which will be used
 //to scrape Orthodox Christian websites
-class OrthodoxWebScraper extends LinkElementDatabaseScraper
+//Here we only care about what is specific to the exact kind of data
+//we want to scrape
+class AncientFaithPodcastScraper extends LinkElementDatabaseScraper
 {
-    public function fetchInfo(): void
-    {
+    //provides different types of link patterns
+    //for verification
+    use ValidatesOrthodoxLinks;
 
+    //We need a property to function as our scrape data
+    private array $podcastLinks;
+    public function __construct(string $scrapeUrl)
+    {
+        parent::_construct($scrapeUrl);
+        $this->podcastLinks = array();
+
+    }
+    public function fetchInfo(string $pageParam): void
+    {
+        if ($this->validatePageParam($pageParam))
+        {
+            $podcasts = $this->getHtml()->find($pageParam);
+        }
+
+
+        foreach ($podcasts as $podcast) {
+            if ($this->isValidLinkType($podcast->href, $this->getPodcastLinkPattern())) {
+                $podcastLink = "https://www.ancientfaith.com" . $podcast->href;
+                $podcastText = $podcast->plaintext;
+
+                $newPodcast = new PodcastLink($podcastLink, $podcastText);
+
+                $this->podcastLinks[] = $newPodcast;
+            }
+        }
     }
     public function prepareInfo(): void
     {
+        try {
+            //TODO - 12/3/2022
+            //TODO - remove hard-coding for only the types of podcasts we are interested in
+            //TODO - well...filtering isn't the problem but hard-coding the categories probably is
 
+            //Now only assuming that we actually have podcasts to display;
+            //ensure the collection is unique and reverse sort
+            if (count($this->podcastLinks) > 1) {
+                $this->podcastLinks = array_unique($this->podcastLinks);
+                rsort($this->podcastLinks);
+                $this->podcastLinks = array_slice($this->podcastLinks, 0, 25);
+            }
+
+            $this->setScrapeData($this->podcastLinks);
+            //if at any time values aren't present in either array
+            //then the state of this operation is to be considered very non-kosher
+        } catch (UnexpectedValueException $e) {
+            error_log("ERR::CANNOT RENDER HTML::err");
+        }
     }
+
+    public function getPodcastLinkCount()
+    {
+        return array('count' => count($this->getScrapeData()));
+    }
+
+   public function displayScrapeHTML(): void
+   {
+       $this->displayLinkHTML('Recent Podcasts', $this->getScrapeData());
+   }
 }
 
 trait DisplaysLinks

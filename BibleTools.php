@@ -216,7 +216,7 @@ trait DisplaysLinks
 {
     public function displayLinkHTML(string $displayName, array $links): void
     {
-        echo "<div class='container'>";
+        echo "<div class='container text-center'>";
         echo "<br />";
         echo "<h2>" . $displayName . "</h2>";
         echo "<br />";
@@ -367,7 +367,7 @@ class OCADailyReadings
 
     public function displayScriptureHTML()
     {
-        echo "<div class='container'>";
+        echo "<div class='container text-center'>";
         echo "<br />";
         echo "<h2>Daily Readings</h2>";
         echo "<br />";
@@ -468,7 +468,7 @@ class OCALivesOfSaints
 
     public function displaySaintHtml()
     {
-        echo "<div class='container'>";
+        echo "<div class='container text-center'>";
         echo "<br />";
         echo "<h2>Daily Saints</h2>";
         echo "<br />";

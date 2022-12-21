@@ -230,6 +230,7 @@ interface Scraper
     //Scraper clients will provide the raw webpage HTML
     public function getHtml(): string;
     //Scraper clients will fetch information from the HTML
+    //using XPATH or CSS SELECT
     public function fetchInfo(string $pageParam): void;
     //Scraper clients will be able to customize how they verify what they're searching for
     public function validatePageParam(string $pageParam): bool;
@@ -244,16 +245,22 @@ interface Scraper
 
 }
 
-interface ScrapeFactory
+interface ScraperFactory
 {
-    public static function createScraper(string $scrapeType): Scraper;
+    //The scraper factory must take instructions on how to create the desired scraper
+    //Provide the type of scraper and also the scrapeUrl that will be used to construct it
+    public static function createScraper(string $scraperType, string $scrapeUrl): Scraper;
 }
 
-class OrthodoxScrapeFactory implements ScrapeFactory
+class OrthodoxScraperFactory implements ScraperFactory
 {
-    public static function createScraper(string $scrapeType): Scraper
+    public static function createScraper(string $scraperType, string $scrapeUrl): Scraper
     {
-        // TODO: Implement createScraper() method.
+        $scraperClient = match($scrapeType) {
+            'PodCast' => new AncientFaithPodcastScraper($scrapeUrl),
+            'Saints' => new OCALivesOfSaints(),
+            'Readings' => new OCADailyReadings()
+        };
     }
 }
 
@@ -277,7 +284,7 @@ abstract class LinkElementScraper implements Scraper
 
     public abstract function getUrl(): string;
     public abstract function getHtml(): string;
-    public abstract function fetchInfo(): void;
+    public abstract function fetchInfo(string $pageParam): void;
     public abstract function prepareInfo(): void;
     public function getScrapeData(): array
     {
@@ -320,12 +327,14 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
 
     public function __construct(string $scrapeUrl)
     {
-        if (filter_var($scrapeUrl, FILTER_VALIDATE_URL, FILTER_FLAG_HOST_REQUIRED) === true)
+        parent::__construct();
+        //if (filter_var($scrapeUrl, FILTER_VALIDATE_URL) === true) //TODO, filters not working
+        if(str_contains($scrapeUrl, 'http') || str_contains($scrapeUrl, 'https'))
         {
             $this->scrapeUrl = $scrapeUrl;
             $this->html = fetch_html($scrapeUrl);
         } else {
-            throw new InvalidArgumentException("SCRAPE URL must be valid URI :: HOST REQUIRED");
+            throw new \InvalidArgumentException("SCRAPE URL must be valid URI :: HOST/PATH REQUIRED");
         }
     }
 
@@ -350,6 +359,11 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
             self::insertLinks($table, $links, $category);
         }
     }
+
+    public function getLinksFromDatabase(string $table, string $category): array
+    {
+        return $this->getAllLinks($table, $category);
+    }
 }
 
 //Webscraper meant to be derived by classes which will be used
@@ -366,47 +380,38 @@ class AncientFaithPodcastScraper extends LinkElementDatabaseScraper
     private array $podcastLinks;
     public function __construct(string $scrapeUrl)
     {
-        parent::_construct($scrapeUrl);
+        parent::__construct($scrapeUrl);
         $this->podcastLinks = array();
 
     }
     public function fetchInfo(string $pageParam): void
     {
-        if ($this->validatePageParam($pageParam))
-        {
-            $podcasts = $this->getHtml()->find($pageParam);
-        }
+        if ($this->validatePageParam($pageParam)) {
+            foreach ($this->getHtml()->find($pageParam) as $podcast) {
+                if ($this->isValidLinkType($podcast->href, $this->getPodcastLinkPattern())) {
+                    $podcastLink = "https://www.ancientfaith.com" . $podcast->href;
+                    $podcastText = $podcast->plaintext;
 
+                    $newPodcast = new PodcastLink($podcastLink, $podcastText);
 
-        foreach ($podcasts as $podcast) {
-            if ($this->isValidLinkType($podcast->href, $this->getPodcastLinkPattern())) {
-                $podcastLink = "https://www.ancientfaith.com" . $podcast->href;
-                $podcastText = $podcast->plaintext;
-
-                $newPodcast = new PodcastLink($podcastLink, $podcastText);
-
-                $this->podcastLinks[] = $newPodcast;
+                    $this->podcastLinks[] = $newPodcast;
+                }
             }
+        } else {
+            throw new InvalidArgumentException("PAGE PARAM must be valid"); //TODO
         }
     }
     public function prepareInfo(): void
     {
         try {
-            //TODO - 12/3/2022
-            //TODO - remove hard-coding for only the types of podcasts we are interested in
-            //TODO - well...filtering isn't the problem but hard-coding the categories probably is
-
-            //Now only assuming that we actually have podcasts to display;
-            //ensure the collection is unique and reverse sort
+            //We want a unique and reverse sorted collection
+            //And we only want to show the first 25 elements
             if (count($this->podcastLinks) > 1) {
                 $this->podcastLinks = array_unique($this->podcastLinks);
                 rsort($this->podcastLinks);
                 $this->podcastLinks = array_slice($this->podcastLinks, 0, 25);
             }
-
             $this->setScrapeData($this->podcastLinks);
-            //if at any time values aren't present in either array
-            //then the state of this operation is to be considered very non-kosher
         } catch (UnexpectedValueException $e) {
             error_log("ERR::CANNOT RENDER HTML::err");
         }
@@ -421,13 +426,19 @@ class AncientFaithPodcastScraper extends LinkElementDatabaseScraper
    {
        $this->displayLinkHTML('Recent Podcasts', $this->getScrapeData());
    }
+
+   public function displayDatabaseScrapeHTML(string $table, string $category): void
+   {
+       $databaseLinks = $this->getLinksFromDatabase($table, $category);
+       $this->displayLinkHTML('Recent Podcasts', $databaseLinks);
+   }
 }
 
 trait DisplaysLinks
 {
     public function displayLinkHTML(string $displayName, array $links): void
     {
-        echo "<div class='container'>";
+        echo "<div class='container text-center'>";
         echo "<br />";
         echo "<h2>" . $displayName . "</h2>";
         echo "<br />";

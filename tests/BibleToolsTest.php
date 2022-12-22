@@ -32,8 +32,19 @@ class LinkElement
 
     public function __construct(string $link, string $text)
     {
-        $this->link = $link;
-        $this->text = $text;
+        if (empty($link) || $link === null){
+            $this->link = 'no value given';
+        } else {
+            $this->link = $link;
+        }
+
+        if (empty($text) || $text === null)
+        {
+            $this->text = 'no value given';
+        } else {
+            $this->text = $text;
+        }
+
         $this->overloadedData = array();
     }
 
@@ -141,7 +152,7 @@ trait LinkElementDatabase
         }
     }
 
-    private function getSqlite3Connection()
+    private static function getSqlite3Connection()
     {
         $attrs = ['driver' => 'pdo_sqlite', 'path' => DAILY_DATABASE];
         return DriverManager::getConnection($attrs);
@@ -152,12 +163,12 @@ trait LinkElementDatabase
     //and insert them into the database
     //every page request after that will be pulling SQL
     //which is much faster than constantly scraping for links
-    public function linkDatabaseExists(): bool
+    protected static function linkDatabaseExists(): bool
     {
         return file_exists(DAILY_DATABASE);
     }
 
-    public function getDatabaseLinkCount(string $linkTable): int
+    protected function getDatabaseLinkCount(string $linkTable): int
     {
         $conn = $this->getSqlite3Connection();
         $query = "SELECT * FROM " . $linkTable;
@@ -175,18 +186,18 @@ trait LinkElementDatabase
     }
     */
 
-    public function dropCreateTable(string $table): void
+    protected static function dropCreateTable(string $table): void
     {
-        $conn = $this->getSqlite3Connection();
+        $conn = self::getSqlite3Connection();
         $conn->executeQuery('DROP TABLE IF EXISTS ' . $table . ';');
-        $conn->executeQuery('CREATE TABLE ' . $table . ' (link varchar(255), text varchar(1000) null, category varchar(100) null)');
+        $conn->executeQuery('CREATE TABLE ' . $table . ' (id serial primary key, link varchar(255), text varchar(1000) null, category varchar(100) null, insert_ts datetime not null default(CURRENT_TIMESTAMP))');
         $conn->close();
     }
 
 
-    public function insertLinks(string $table, array $links, string $category): bool|int|string
+    protected static function insertLinks(string $table, array $links, string $category): bool|int|string
     {
-        $conn = $this->getSqlite3Connection();
+        $conn = self::getSqlite3Connection();
 
         foreach ($links as $link) {
             $conn->insert($table, array('link' => $link->getLink(), 'text' => $link->getText(), 'category' => $category));
@@ -199,12 +210,12 @@ trait LinkElementDatabase
         return $lastInsertId;
     }
 
-    public function getAllLinks(string $table, string $category): array
+    protected function getAllLinks(string $table, string $category): array
     {
         $databaseLinks = [];
         $conn = $this->getSqlite3Connection();
         $queryBuilder = $conn->createQueryBuilder();
-        $queryBuilder->select('*')->from($table)->where('category = ?')->setParameter(0, $category);
+        $queryBuilder->select('link, text')->from($table)->where('category = ?')->setParameter(0, $category);
 
         if ($this->isDebugOn() === true) {
             echo $queryBuilder->getSQL() . " (param): " . $queryBuilder->getParameter(0);
@@ -349,14 +360,21 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
         return $this->html;
     }
 
-    public static function saveLinksToDatabase(string $table, array $links, string $category): void
+    public static function createLinkDatabaseTable(string $table)
     {
         if (!self::linkDatabaseExists())
         {
-            //If the database doesn't exist
+            //If the daily database doesn't exist
             //then we definitely need to get the freshest data and load the links
-            self::fetchFreshData();
             self::dropCreateTable($table);
+        }
+    }
+
+    public static function saveLinksToDatabase(string $table, array $links, string $category): void
+    {
+        if (empty($links) || (count($links) < 1)) {
+            throw new UnexpectedValueException("ERR::NO DATA TO INSERT TO DATABASE PROVIDED::UnexpectedValue::" . PHP_EOL);
+        } else {
             self::insertLinks($table, $links, $category);
         }
     }
@@ -428,16 +446,16 @@ class AncientFaithPodcastScraper extends LinkElementDatabaseScraper
        $this->displayLinkHTML('Recent Podcasts', $this->getScrapeData());
    }
 
-   public function displayDatabaseScrapeHTML(string $table, string $category): void
+   public function displayDatabaseScrapeHTML(string $table): void
    {
-       $databaseLinks = $this->getLinksFromDatabase($table, $category);
+       $databaseLinks = $this->getLinksFromDatabase($table, 'podcasts');
        $this->displayLinkHTML('Recent Podcasts', $databaseLinks);
    }
 }
 
 trait DisplaysLinks
 {
-    public function displayLinkHTML(string $displayName, array $links): void
+    protected function displayLinkHTML(string $displayName, array $links): void
     {
         echo "<div class='container text-center'>";
         echo "<br />";

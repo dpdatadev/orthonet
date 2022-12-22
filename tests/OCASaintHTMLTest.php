@@ -6,7 +6,7 @@ declare(strict_types=1);
 
 use Scraping\OCALivesOfSaints;
 
-include_once('../lib/BibleToolsTest.php');
+include_once('../lib/MiniScrapeFramework.php');
 
 echo "<h2>Integration Tests</h2>";
 echo "<br /><small>OCA Lives of The Saints Scraping</small><hr />";

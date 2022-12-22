@@ -50,7 +50,7 @@
  * The utility classes provided just prevent you from having to make the same boilerplate code
  * for:
  * 1. Connecting to the webpage
- * 2. Downlaoding the webpage
+ * 2. Downloading the webpage
  * 3. Returning the contents of the webpage
  * 4. Finding, validating, and returning certain elements of the webpage (i.e Links)
  * 5. Saving the elements to a database table
@@ -61,7 +61,7 @@
 
 declare(strict_types=1);
 
-require_once 'BibleToolsTest.php';
+require_once 'MiniScrapeFramework.php';
 
 error_reporting(E_ALL);
 
@@ -69,7 +69,7 @@ use PHPUnit\Framework\TestCase;
 use ScrapingTest\AncientFaithPodcastScraper;
 use ScrapingTest\OrthodoxScraperFactory;
 
-final class BibleToolsTest2 extends TestCase
+final class MiniScrapeFrameworkTest extends TestCase
 {
     //Full API Test -- TODO, set up better test suite
     public function test_scraper_factory_can_create_scrapers_and_return_scraped_html_and_also_store_retrieve_and_display_the_data_using_a_database(): void
@@ -133,6 +133,8 @@ final class BibleToolsTest2 extends TestCase
         $scrapeDatabaseCount = count($testDatabaseLinks);
 
         //Now we will compare the two numbers and make sure they are the same
+        //The count should be 25 because in our prepare method, we spliced the array
+        //to make sure only 25 elements would be stored for display
         $this->assertSame($scrapeCount, $scrapeDatabaseCount);
 
         //Now go ahead and show the (cached) data from the database!

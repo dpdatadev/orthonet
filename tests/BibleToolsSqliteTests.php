@@ -1,6 +1,6 @@
 <?php
 
-require 'BibleToolsTest.php';
+require 'MiniScrapeFramework.php';
 
 
 use ScrapingTest\AncientFaithPodcasts;

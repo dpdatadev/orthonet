@@ -34,13 +34,13 @@ class LinkElement
 
     public function __construct(string $link, string $text)
     {
-        if (empty($link) || $link === null) {
+        if (empty($link) || $link === '') {
             $this->link = 'no value given';
         } else {
             $this->link = $link;
         }
 
-        if (empty($text) || $text === null) {
+        if (empty($text) || $text === '') {
             $this->text = 'no value given';
         } else {
             $this->text = $text;
@@ -108,6 +108,7 @@ class SaintLink extends LinkElement
 
 trait ValidatesOrthodoxLinks
 {
+    //TODO, there's a better way to handle uri validation..
     //Traits can't have constants until PHP 8.2 I think....
     public function getPodcastLinkPattern(): string
     {
@@ -159,11 +160,6 @@ trait LinkElementDatabase
         return DriverManager::getConnection($attrs);
     }
 
-    //If the daily database doesn't exist then
-    //the client class can choose to scrape the links fresh
-    //and insert them into the database
-    //every page request after that will be pulling SQL
-    //which is much faster than constantly scraping for links
     protected static function linkDatabaseExists(): bool
     {
         return file_exists(DAILY_DATABASE);
@@ -177,21 +173,12 @@ trait LinkElementDatabase
         return $num_rows;
     }
 
-    /*
-    public function getDatabaseLinkCountCategory(string $linkTable, string $category): int
-    {
-        $conn = $this->getSqlite3Connection();
-        $query = sprintf("SELECT * FROM %s WHERE category = %s", $linkTable, "'" . $category . "'");
-        $num_rows = $conn->executeQuery($query)->rowCount();
-        return $num_rows;
-    }
-    */
 
     protected static function dropCreateTable(string $table): void
     {
         $conn = self::getSqlite3Connection();
         $conn->executeQuery('DROP TABLE IF EXISTS ' . $table . ';');
-        $conn->executeQuery('CREATE TABLE ' . $table . ' (id serial primary key, link varchar(255), text varchar(1000) null, category varchar(100) null, insert_ts datetime not null default(CURRENT_TIMESTAMP))');
+        $conn->executeQuery('CREATE TABLE ' . $table . ' (id INTEGER PRIMARY KEY AUTOINCREMENT, link varchar(255), text varchar(1000) null, category varchar(100) null, insert_ts datetime not null default(CURRENT_TIMESTAMP))');
         $conn->close();
     }
 

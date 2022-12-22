@@ -8,7 +8,6 @@ use App\Database\Repository\ArticleRepository as TestRepo;
 
 final class ArticlesRepositoryTest extends TestClass
 {
-
     public function test_that_articles_repository_can_fetch_all_articles(): void
     {
         //grab the Postgres PDO object

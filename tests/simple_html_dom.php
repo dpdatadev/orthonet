@@ -59,8 +59,7 @@ function file_get_html(
     $stripRN = true,
     $defaultBRText = DEFAULT_BR_TEXT,
     $defaultSpanText = DEFAULT_SPAN_TEXT
-)
-{
+) {
     if ($maxLen <= 0) {
         $maxLen = MAX_FILE_SIZE;
     }
@@ -104,8 +103,7 @@ function str_get_html(
     $stripRN = true,
     $defaultBRText = DEFAULT_BR_TEXT,
     $defaultSpanText = DEFAULT_SPAN_TEXT
-)
-{
+) {
     $dom = new simple_html_dom(
         null,
         $lowercase,
@@ -501,9 +499,9 @@ class simple_html_dom_node
             } else {
                 switch ($this->_[HDOM_INFO_QUOTE][$i]) {
                     case HDOM_QUOTE_DOUBLE: $quote = '"';
-                    break;
+                        break;
                     case HDOM_QUOTE_SINGLE: $quote = '\'';
-                    break;
+                        break;
                     default: $quote = '';
                 }
 
@@ -1537,8 +1535,7 @@ class simple_html_dom
         $defaultBRText = DEFAULT_BR_TEXT,
         $defaultSpanText = DEFAULT_SPAN_TEXT,
         $options = 0
-    )
-    {
+    ) {
         if ($str) {
             if (preg_match('/^http:\/\//i', $str) || is_file($str)) {
                 $this->load_file($str);
@@ -1574,8 +1571,7 @@ class simple_html_dom
         $defaultBRText = DEFAULT_BR_TEXT,
         $defaultSpanText = DEFAULT_SPAN_TEXT,
         $options = 0
-    )
-    {
+    ) {
         global $debug_object;
 
         // prepare
@@ -1700,8 +1696,7 @@ class simple_html_dom
         $lowercase = true,
         $defaultBRText = DEFAULT_BR_TEXT,
         $defaultSpanText = DEFAULT_SPAN_TEXT
-    )
-    {
+    ) {
         $this->clear();
 
         $this->doc = trim($str);

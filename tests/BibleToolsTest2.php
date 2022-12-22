@@ -150,5 +150,4 @@ final class BibleToolsTest2 extends TestCase
         //or passed to another PHP process!
         $testScraper->displayDatabaseScrapeHTML($testTable);
     }
-
 }

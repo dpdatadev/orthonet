@@ -1,4 +1,6 @@
-<?php /** @noinspection ALL */
+<?php
+
+/** @noinspection ALL */
 
 namespace App\Database;
 
@@ -11,7 +13,7 @@ class ExtendedPDO extends PDO
         parent::__construct($dsn, $username, $password, $options);
     }
 
-    public function run($sql, $args = NULL)
+    public function run($sql, $args = null)
     {
         if (!$args) {
             return $this->query($sql);

@@ -1,4 +1,5 @@
 <?php
+
 /** @noinspection ALL */
 declare(strict_types=1);
 
@@ -142,7 +143,7 @@ trait ValidatesLinkTypes
 
     public function isValidLinkType(string $link, string $linkType)
     {
-        if (str_contains($link, $linkType)){
+        if (str_contains($link, $linkType)) {
             return true;
         } else {
             return false;
@@ -182,8 +183,7 @@ trait LinkElementDatabase
 
         $conn = $this->getSqlite3Connection();
 
-        foreach ($links as $link)
-        {
+        foreach ($links as $link) {
             $conn->insert($table, array('link' => $link->getLink(), 'text' => $link->getText()));
         }
 
@@ -202,8 +202,7 @@ trait LinkElementDatabase
         $queryBuilder->select('*')->from($table);
 
         $stm = $queryBuilder->execute();
-        foreach ($stm->fetchAll(FetchMode::NUMERIC) as $databaseLink)
-        {
+        foreach ($stm->fetchAll(FetchMode::NUMERIC) as $databaseLink) {
             $newLink = new LinkElement($databaseLink[0], $databaseLink[1]);
             $databaseLinks[] = $newLink;
         }
@@ -306,8 +305,7 @@ class AncientFaithPodcasts
 
     public function saveLinksToDatabase(string $table): void
     {
-        if (!$this->linkDatabaseExists())
-        {
+        if (!$this->linkDatabaseExists()) {
             $this->fetchPodcastInfo();
             $this->preparePodcastHTML();
             $this->insertLinks($table, $this->podcastLinks);

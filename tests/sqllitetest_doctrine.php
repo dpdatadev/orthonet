@@ -15,8 +15,7 @@ try {
         "data" => "my other data",
     ));
 
-    if ($conn->lastInsertId() > 0)
-    {
+    if ($conn->lastInsertId() > 0) {
         $queryBuilder = $conn->createQueryBuilder();
         $queryBuilder->select('*')->from('testdata');
 
@@ -27,7 +26,5 @@ try {
             echo "{$row[0]} {$row[1]}\n";
         }
     }
-
-
 } catch (\Doctrine\DBAL\Exception $e) {
 }

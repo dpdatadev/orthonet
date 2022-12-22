@@ -7,8 +7,8 @@ require 'LinkElementRepository.php';
 use App\Database\ExtendedPDO;
 use PhpSpec\Exception\Fracture\InterfaceNotImplementedException;
 
-class ArticleRepository extends LinkElementRepository {
-
+class ArticleRepository extends LinkElementRepository
+{
     public function __construct(ExtendedPDO $db)
     {
         parent::__construct($db);

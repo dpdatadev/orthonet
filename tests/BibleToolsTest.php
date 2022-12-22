@@ -1,4 +1,5 @@
 <?php
+
 /** @noinspection ALL */
 declare(strict_types=1);
 
@@ -9,13 +10,14 @@ require_once './vendor/autoload.php';
 //opensource PHP web scraping library
 require_once 'simple_html_dom.php';
 
-use function file_get_html as fetch_html;
-
-
 use Doctrine\DBAL\DriverManager;
+
+
 use Doctrine\DBAL\FetchMode;
 use http\Exception\InvalidArgumentException;
 use http\Exception\UnexpectedValueException;
+
+use function file_get_html as fetch_html;
 
 //Daily generated SQLITE database to hold web scrape data
 //Somewhat of a cache for the frontend -
@@ -32,14 +34,13 @@ class LinkElement
 
     public function __construct(string $link, string $text)
     {
-        if (empty($link) || $link === null){
+        if (empty($link) || $link === null) {
             $this->link = 'no value given';
         } else {
             $this->link = $link;
         }
 
-        if (empty($text) || $text === null)
-        {
+        if (empty($text) || $text === null) {
             $this->text = 'no value given';
         } else {
             $this->text = $text;
@@ -123,7 +124,7 @@ trait ValidatesOrthodoxLinks
 
     public function isValidLinkType(string $link, string $linkType)
     {
-        if (str_contains($link, $linkType)){
+        if (str_contains($link, $linkType)) {
             return true;
         } else {
             return false;
@@ -253,7 +254,6 @@ interface Scraper
     public function getScrapeData(): array;
     //Scraper clients will be able to display the scraped HTML
     public function displayScrapeHTML(): void;
-
 }
 
 interface ScraperFactory
@@ -267,7 +267,7 @@ class OrthodoxScraperFactory implements ScraperFactory
 {
     public static function createScraper(string $scraperType, string $scrapeUrl): Scraper
     {
-        $scraperClient = match($scraperType) {
+        $scraperClient = match ($scraperType) {
             'Podcasts' => new AncientFaithPodcastScraper($scrapeUrl),
             'Saints' => new OCALivesOfSaints(),
             'Readings' => new OCADailyReadings()
@@ -292,13 +292,12 @@ abstract class LinkElementScraper implements Scraper
 
     public function __construct()
     {
-
     }
 
-    public abstract function getUrl(): string;
-    public abstract function getHtml(): mixed;
-    public abstract function fetchInfo(string $pageParam): void;
-    public abstract function prepareInfo(): void;
+    abstract public function getUrl(): string;
+    abstract public function getHtml(): mixed;
+    abstract public function fetchInfo(string $pageParam): void;
+    abstract public function prepareInfo(): void;
     public function getScrapeData(): array
     {
         return $this->scrapeLinks;
@@ -308,15 +307,14 @@ abstract class LinkElementScraper implements Scraper
         $this->scrapeLinks = $data;
     }
 
-    public abstract function displayScrapeHTML(): void;
+    abstract public function displayScrapeHTML(): void;
 
     //Scraper clients that specialize in links will provide vaildation rules for what they're searching for on the page
     public function validatePageParam(string $pageParam): bool
     {
         $isValid = false;
 
-        if (str_contains($pageParam, 'a') || str_contains($pageParam, 'li') || str_contains($pageParam, 'href'))
-        {
+        if (str_contains($pageParam, 'a') || str_contains($pageParam, 'li') || str_contains($pageParam, 'href')) {
             $isValid = true;
         }
 
@@ -341,8 +339,7 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
     {
         parent::__construct();
         //if (filter_var($scrapeUrl, FILTER_VALIDATE_URL) === true) //TODO, filters not working
-        if(str_contains($scrapeUrl, 'http') || str_contains($scrapeUrl, 'https'))
-        {
+        if (str_contains($scrapeUrl, 'http') || str_contains($scrapeUrl, 'https')) {
             $this->scrapeUrl = $scrapeUrl;
             $this->html = fetch_html($scrapeUrl);
         } else {
@@ -362,8 +359,7 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
 
     public static function createLinkDatabaseTable(string $table)
     {
-        if (!self::linkDatabaseExists())
-        {
+        if (!self::linkDatabaseExists()) {
             //If the daily database doesn't exist
             //then we definitely need to get the freshest data and load the links
             self::dropCreateTable($table);
@@ -401,7 +397,6 @@ class AncientFaithPodcastScraper extends LinkElementDatabaseScraper
     {
         parent::__construct($scrapeUrl);
         $this->podcastLinks = array();
-
     }
     public function fetchInfo(string $pageParam): void
     {
@@ -545,7 +540,7 @@ class AncientFaithPodcasts
         }
     }
 
-    private function fetchFreshData() : void
+    private function fetchFreshData(): void
     {
         $this->fetchPodcastInfo();
         $this->preparePodcastHTML();
@@ -553,14 +548,12 @@ class AncientFaithPodcasts
 
     public static function savePodCastLinksToDatabase(string $table): void
     {
-
         //We only load the scrape data once per day
         //When the daily database name changes out
         //For all other page hits - the links already stored (cached)
         //in the database will be displayed.
         //We are now hitting the site far less for the same data!
-        if (!self::linkDatabaseExists())
-        {
+        if (!self::linkDatabaseExists()) {
             //If the database doesn't exist
             //then we definitely need to get the freshest data and load the links
             self::fetchFreshData();
@@ -577,8 +570,8 @@ class AncientFaithPodcasts
 
     public function displayDatabasePodcastLinks(string $table): void
     {
-       $databaseLinks = $this->getAllLinks($table, 'podcasts');
-       $this->displayLinkHTML('Recent Podcasts', $databaseLinks);
+        $databaseLinks = $this->getAllLinks($table, 'podcasts');
+        $this->displayLinkHTML('Recent Podcasts', $databaseLinks);
     }
 }
 
@@ -628,28 +621,25 @@ class OCADailyReadings
         }
     }
 
-    private function fetchFreshData() : void
+    private function fetchFreshData(): void
     {
         $this->fetchScriptureInfo();
     }
     //TODO
     public function saveScriptureLinksToDatabase(string $table): void
     {
-
         //We only load the scrape data once per day
         //When the daily database name changes out
         //For all other page hits - the links already stored (cached)
         //in the database will be displayed.
         //We are now hitting the site far less for the same data!
-        if (!$this->linkDatabaseExists())
-        {
+        if (!$this->linkDatabaseExists()) {
             //If the database doesn't exist
             //then we definitely need to get the freshest data and load the links
             $this->fetchFreshData();
             //$this->dropCreateTable($table);
             $this->insertLinks($table, $this->readingLinks, 'scriptures');
         }
-
     }
 
     public function displayScriptureHTML()
@@ -739,7 +729,7 @@ class OCALivesOfSaints
         }
     }
 
-    private function fetchFreshData() : void
+    private function fetchFreshData(): void
     {
         $this->fetchSaintInfo();
         $this->prepareSaintHtml();
@@ -747,21 +737,18 @@ class OCALivesOfSaints
 
     public function saveSaintLinksToDatabase(string $table): void
     {
-
         //We only load the scrape data once per day
         //When the daily database name changes out
         //For all other page hits - the links already stored (cached)
         //in the database will be displayed.
         //We are now hitting the site far less for the same data!
-        if (!$this->linkDatabaseExists())
-        {
+        if (!$this->linkDatabaseExists()) {
             //If the database doesn't exist
             //then we definitely need to get the freshest data and load the links
             $this->fetchFreshData();
             //$this->dropCreateTable($table);
             $this->insertLinks($table, $this->saintSnippets, 'saints');
         }
-
     }
 
     public function displaySaintHTML()

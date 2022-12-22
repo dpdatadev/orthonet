@@ -3,6 +3,7 @@
 /** @noinspection ALL */
 
 /** @noinspection PhpUndefinedClassInspection */
+
 namespace PDOSingleton;
 
 //Basic wrapper/proxy - Singleton PDO

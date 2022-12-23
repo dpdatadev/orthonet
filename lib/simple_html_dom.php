@@ -21,6 +21,11 @@
  * Version Rev. 1.9.1 (291)
  */
 
+/*
+ * dpdatadev 12/22/2022
+ * Added Socket Timeout to 1200 seconds (line 53)
+ */
+
 define('HDOM_TYPE_ELEMENT', 1);
 define('HDOM_TYPE_COMMENT', 2);
 define('HDOM_TYPE_TEXT', 3);
@@ -45,7 +50,7 @@ defined('DEFAULT_SPAN_TEXT') || define('DEFAULT_SPAN_TEXT', ' ');
 defined('MAX_FILE_SIZE') || define('MAX_FILE_SIZE', 600000);
 define('HDOM_SMARTY_AS_TEXT', 1);
 
-ini_set('default_socket_timeout', 900);
+ini_set('default_socket_timeout', 1200);
 
 function file_get_html(
     $url,

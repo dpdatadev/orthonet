@@ -1,6 +1,13 @@
 <?php
 
 /*
+ * TODO -- reading:
+ * https://blog.eleven-labs.com/en/dependency-injection/
+ * https://getcomposer.org/doc/05-repositories.md#path
+ * https://hackthestuff.com/article/create-package-for-php-with-composer#:~:text=Create%20package%20for%20PHP%20with%20composer%201%20composer.json,package%20in%20your%20Project%20...%204%20Conclusion%20
+ */
+
+/*
  * Abstract/Synopsis
  * dpdatadev
  * 12/21/2022
@@ -68,11 +75,12 @@ error_reporting(E_ALL);
 use PHPUnit\Framework\TestCase;
 use ScrapingTest\AncientFaithPodcastScraper;
 use ScrapingTest\OrthodoxScraperFactory;
+use ScrapingTest\SQLITEManager;
 
+//Full API Test -- TODO, further refine tests (fixtures, mocks, etc.,)
 final class MiniScrapeFrameworkTest extends TestCase
 {
-    //Full API Test -- TODO, set up better test suite
-    public function test_scraper_factory_can_create_scrapers_and_return_scraped_html_and_also_store_retrieve_and_display_the_data_using_a_database(): void
+    protected function getOrthodoxPodcastScraper(): ScrapingTest\Scraper
     {
         //Create a custom Scraper Factory which contains the configuration for instantiating our different page scrapers
         $scraperFactory = new OrthodoxScraperFactory();
@@ -81,6 +89,25 @@ final class MiniScrapeFrameworkTest extends TestCase
         $scrapeUrl = "https://www.ancientfaith.com/podcasts#af-recent-episodes";
         //Create the Scraper
         $testScraper = $scraperFactory::createScraper($scrapeType, $scrapeUrl);
+
+        return $testScraper;
+    }
+
+    public function test_create_database_and_web_scrape_table_and_verify_success(): void
+    {
+        //We are testing to ensure that we can create the database and table only once and then insert links
+        //for all the configured linkelement scrapers.
+        SQLITEManager::createDatabaseTable('web_scrape_data', 'CREATE TABLE web_scrape_data(ID INTEGER PRIMARY KEY AUTOINCREMENT, link varchar(255) null, text varchar(255) null, category varchar(255) null, create_ts timestamp not null default(CURRENT_TIMESTAMP));');
+        $this->assertTrue(SQLITEManager::linkDatabaseExists());
+    }
+
+    /**
+     * @group ignore
+     */
+    public function test_that_we_can_create_the_database_and_table_then_get_a_scraper_from_the_factory_then_scrape_and_display_using_the_database(): void
+    {
+        $testScraper = $this->getOrthodoxPodcastScraper();
+
         //Test that creation was successful
         $this->assertNotNull($testScraper);
         //Test that it's truly a Podcast scraper, proving the matching and instantiation was successful
@@ -103,20 +130,14 @@ final class MiniScrapeFrameworkTest extends TestCase
         //Get an array of the data we scraped for testing
         $testLinks = $testScraper->getScrapeData();
 
-        //Name of our table
-        $testTable = 'web_scrape_data';
-
-        //Verifying we actually have some data to work with
-        $this->assertNotEmpty($testLinks);
+        //Make sure we have some data to use
         $this->assertNotNull($testLinks);
+        $this->assertNotEmpty($testLinks);
 
-        //Creation of the database table and loading of the table is handled statically at the class level
-        //These methods won't be called multiple times in the HTTP request life cycle but will be fired off
-        //By a cron job or some other trigger..they are utility functions.
-        AncientFaithPodcastScraper::createLinkDatabaseTable($testTable);
-
+        //Now we'll interact with the database which will have been created in the test above
+        //==================================================================================
         //The data being inserted into the database is the freshly scraped and prepared data that fetchInfo() returned.
-        AncientFaithPodcastScraper::saveLinksToDatabase($testTable, $testScraper->getScrapeData(), 'podcasts');
+        AncientFaithPodcastScraper::saveLinksToDatabase('web_scrape_data', $testScraper->getScrapeData(), 'podcasts');
 
         //Now to test that the links were properly saved to the database we will fetch and test
         $testDatabaseLinks = $testScraper->getLinksFromDatabase('web_scrape_data', 'podcasts');
@@ -150,6 +171,26 @@ final class MiniScrapeFrameworkTest extends TestCase
 
         //But of course you could be scraping data that needs to be stored in a more permanent datastore, written to a file,
         //or passed to another PHP process!
-        $testScraper->displayDatabaseScrapeHTML($testTable);
+        $testScraper->displayDatabaseScrapeHTML('web_scrape_data');
+    }
+
+
+    public function test_loading_existing_data_without_scraping(): void
+    {
+        $testScraper = $this->getOrthodoxPodcastScraper();
+
+        if (SQLITEManager::linkDatabaseExists())
+        {
+            //We ran one fresh podcast scrape in the test prior
+            $expectedCount = 25;
+
+            $testCount = count($testScraper->getLinksFromDatabase('web_scrape_data', 'podcasts'));
+
+            $this->assertSame($expectedCount, $testCount);
+
+            $testScraper->setDebugOn(); //show the SQL for the below operation
+
+            $testScraper->displayDatabaseScrapeHTML('web_scrape_data');
+        }
     }
 }

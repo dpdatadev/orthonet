@@ -10,6 +10,7 @@ require_once './vendor/autoload.php';
 //opensource PHP web scraping library
 require_once 'simple_html_dom.php';
 
+use \Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 
 
@@ -18,11 +19,7 @@ use http\Exception\InvalidArgumentException;
 use http\Exception\UnexpectedValueException;
 
 use function file_get_html as fetch_html;
-
-//Daily generated SQLITE database to hold web scrape data
-//Somewhat of a cache for the frontend -
-//the goal is to scrape the same data less
-define('DAILY_DATABASE', "link_database_" . date('y_m_d') . ".db");
+use function PHPUnit\Framework\objectHasAttribute;
 
 //#[AllowDynamicProperties] PHP 8.2 will deprecate dynamic properties outside of stdClass
 class LinkElement
@@ -133,7 +130,48 @@ trait ValidatesOrthodoxLinks
     }
 }
 
-trait LinkElementDatabase
+//Daily generated SQLITE database to hold web scrape data
+//Somewhat of a cache for the frontend -
+define('DAILY_DATABASE', "link_database_" . date('y_m_d') . ".db");
+
+final class SQLITEManager
+{
+    public function __construct()
+    {
+
+    }
+
+    public static function getSqlite3Connection(): Connection
+    {
+        $attrs = ['driver' => 'pdo_sqlite', 'path' => DAILY_DATABASE];
+        return DriverManager::getConnection($attrs);
+    }
+
+    //TODO, add method to delete current database
+
+    public static function createDatabaseTable(string $table, string $columns) : void
+    {
+        if (!self::linkDatabaseExists()) {
+            //If the daily database doesn't exist
+            //then we definitely need to get the freshest data and load the links
+            self::dropCreateTable($table, $columns);
+        }
+    }
+    public static function linkDatabaseExists(): bool
+    {
+        return file_exists(DAILY_DATABASE);
+    }
+
+    public static function dropCreateTable(string $table, string $tableSQL): void
+    {
+        $conn = self::getSqlite3Connection();
+        $conn->executeQuery('DROP TABLE IF EXISTS ' . $table . ';');
+        $conn->executeQuery($tableSQL);
+        $conn->close();
+    }
+}
+
+trait LinkElementDatabaseAccess
 {
     private bool $debugFlag = false;
 
@@ -154,32 +192,22 @@ trait LinkElementDatabase
         }
     }
 
-    private static function getSqlite3Connection()
+    private static function getSqlite3Connection(): Connection
     {
-        $attrs = ['driver' => 'pdo_sqlite', 'path' => DAILY_DATABASE];
-        return DriverManager::getConnection($attrs);
+        return SQLITEManager::getSqlite3Connection();
     }
 
     protected static function linkDatabaseExists(): bool
     {
-        return file_exists(DAILY_DATABASE);
+        return SQLITEManager::linkDatabaseExists();
     }
 
     protected function getDatabaseLinkCount(string $linkTable): int
     {
-        $conn = $this->getSqlite3Connection();
+        $conn = self::getSqlite3Connection();
         $query = "SELECT * FROM " . $linkTable;
         $num_rows = $conn->executeQuery($query)->rowCount();
         return $num_rows;
-    }
-
-
-    protected static function dropCreateTable(string $table): void
-    {
-        $conn = self::getSqlite3Connection();
-        $conn->executeQuery('DROP TABLE IF EXISTS ' . $table . ';');
-        $conn->executeQuery('CREATE TABLE ' . $table . ' (id INTEGER PRIMARY KEY AUTOINCREMENT, link varchar(255), text varchar(1000) null, category varchar(100) null, insert_ts datetime not null default(CURRENT_TIMESTAMP))');
-        $conn->close();
     }
 
 
@@ -206,7 +234,7 @@ trait LinkElementDatabase
         $queryBuilder->select('link, text')->from($table)->where('category = ?')->setParameter(0, $category);
 
         if ($this->isDebugOn() === true) {
-            echo $queryBuilder->getSQL() . " (param): " . $queryBuilder->getParameter(0);
+            echo $queryBuilder->getSQL() . " (param): " . $queryBuilder->getParameter(0) . PHP_EOL;
         }
 
         $stm = $queryBuilder->execute();
@@ -226,8 +254,12 @@ interface Scraper
 {
     //Scraper clients will provide the configured URL
     public function getUrl(): string;
-    //Scraper clients will provide the raw webpage HTML
+    //Scrapers will download the html of a webpage only when invoked
+    public function downloadHtml(): void;
+    //Scraper clients will provide the Simple Dom obejct to interact with HTML
     public function getHtml(): mixed;
+    //Scrapers will return the raw plaintext HTML from the SimpleDOM object
+    public function getRawHtml(): mixed;
     //Scraper clients will fetch information from the HTML
     //using XPATH or CSS SELECT
     public function fetchInfo(string $pageParam): void;
@@ -250,14 +282,14 @@ interface ScraperFactory
     public static function createScraper(string $scraperType, string $scrapeUrl): Scraper;
 }
 
-class OrthodoxScraperFactory implements ScraperFactory
+final class OrthodoxScraperFactory implements ScraperFactory
 {
     public static function createScraper(string $scraperType, string $scrapeUrl): Scraper
     {
         $scraperClient = match ($scraperType) {
             'Podcasts' => new AncientFaithPodcastScraper($scrapeUrl),
-            'Saints' => new OCALivesOfSaints(),
-            'Readings' => new OCADailyReadings()
+            'Saints' => new OCALivesOfSaintsScraper(),
+            'Readings' => new OCADailyReadingsScraper()
         };
 
         return $scraperClient;
@@ -274,15 +306,52 @@ abstract class LinkElementScraper implements Scraper
     //Display HTML table of link elements
     //whether they be freshly scraped or from the database
     use DisplaysLinks;
+
+    //webpage to fetch
+    protected $scrapeUrl;
+
+    //fetched webpage object
+    protected $html;
+
     //Scrape data are li/a/href link elements
+    //Client classes will have assign scraped data they customize to this field
+    //using setScrapeData(array)
     private array $scrapeLinks;
 
-    public function __construct()
+    public function __construct(string $scrapeUrl)
     {
+        //if (filter_var($scrapeUrl, FILTER_VALIDATE_URL) === true) //TODO, filters not working
+        if (str_contains($scrapeUrl, 'http') || str_contains($scrapeUrl, 'https')) {
+            $this->scrapeUrl = $scrapeUrl;
+        } else {
+            throw new \InvalidArgumentException("SCRAPE URL must be valid URI :: HOST/PATH REQUIRED");
+        }
     }
 
-    abstract public function getUrl(): string;
-    abstract public function getHtml(): mixed;
+    public function getUrl(): string
+    {
+        return $this->scrapeUrl;
+    }
+
+    public function getRawHtml(): mixed
+    {
+        if (objectHasAttribute($this->html, 'plaintext'))
+        {
+            return $this->html->plaintext;
+        } else {
+            throw new UnexpectedValueException("Simple DOM error, no HTML to display! Make sure to call downloadHtml() first.");
+        }
+    }
+
+    public function getHtml(): mixed
+    {
+       return $this->html;
+    }
+
+    public function downloadHtml(): void
+    {
+        $this->html = fetch_html($this->getUrl());
+    }
     abstract public function fetchInfo(string $pageParam): void;
     abstract public function prepareInfo(): void;
     public function getScrapeData(): array
@@ -315,33 +384,12 @@ abstract class LinkElementScraper implements Scraper
 abstract class LinkElementDatabaseScraper extends LinkElementScraper
 {
     //Access to cached web scrape data in SQLITE
-    use LinkElementDatabase;
-
-    //webpage to fetch
-    private $scrapeUrl;
-    //fetched webpage
-    private $html;
+    use LinkElementDatabaseAccess;
 
     public function __construct(string $scrapeUrl)
     {
-        parent::__construct();
-        //if (filter_var($scrapeUrl, FILTER_VALIDATE_URL) === true) //TODO, filters not working
-        if (str_contains($scrapeUrl, 'http') || str_contains($scrapeUrl, 'https')) {
-            $this->scrapeUrl = $scrapeUrl;
-            $this->html = fetch_html($scrapeUrl);
-        } else {
-            throw new \InvalidArgumentException("SCRAPE URL must be valid URI :: HOST/PATH REQUIRED");
-        }
-    }
+        parent::__construct($scrapeUrl);
 
-    public function getUrl(): string
-    {
-        return $this->scrapeUrl;
-    }
-
-    public function getHtml(): mixed
-    {
-        return $this->html;
     }
 
     public static function createLinkDatabaseTable(string $table)
@@ -379,6 +427,7 @@ class AncientFaithPodcastScraper extends LinkElementDatabaseScraper
     use ValidatesOrthodoxLinks;
 
     //We need a property to function as our scrape data
+    //We will pass this to setScrapeData($podcastLinks)
     private array $podcastLinks;
     public function __construct(string $scrapeUrl)
     {
@@ -388,6 +437,7 @@ class AncientFaithPodcastScraper extends LinkElementDatabaseScraper
     public function fetchInfo(string $pageParam): void
     {
         if ($this->validatePageParam($pageParam)) {
+            $this->downloadHtml();
             foreach ($this->getHtml()->find($pageParam) as $podcast) {
                 if ($this->isValidLinkType($podcast->href, $this->getPodcastLinkPattern())) {
                     $podcastLink = "https://www.ancientfaith.com" . $podcast->href;
@@ -468,7 +518,7 @@ class AncientFaithPodcasts
     use DisplaysLinks;
 
     //Access to cached web scrape data in SQLITE
-    use LinkElementDatabase;
+    use LinkElementDatabaseAccess;
 
     //most recent podcasts from Ancient Faith Ministries
     private const URL = "https://www.ancientfaith.com/podcasts#af-recent-episodes";
@@ -562,260 +612,20 @@ class AncientFaithPodcasts
     }
 }
 
-class OCADailyReadings
+class OCADailyReadingsScraper //extends LinkElementDatabaseScraper
 {
     //provides different types of link patterns
     //for verification
     use ValidatesOrthodoxLinks;
 
-    //Display HTML table of link elements
-    //whether they be freshly scraped or from the database
-    use DisplaysLinks;
-
-    //Access to cached web scrape data in SQLITE
-    use LinkElementDatabase;
-
-    private const URL = "https://www.oca.org/readings";
-
-    //array to hold daily scripture readings
-    private $readingLinks;
-    //html collected from the URL
-    private $html;
-
-    public function __construct()
-    {
-        $this->readingLinks = array();
-
-        //open the url
-        $this->html = file_get_html(self::URL);
-    }
-
-    public function fetchScriptureInfo()
-    {
-        //find all links
-        $readings = $this->html->find('a');
-        //now sift through them and find out which ones are for
-        //the daily scriptures
-        foreach ($readings as $reading) {
-            if ($this->isValidLinkType($reading->href, $this->getScriptureLinkPattern())) {
-                $readingText = $reading->plaintext;
-                $readingLink = "https://www.oca.org" . $reading->href;
-                //create new scripture link
-                $dailyReading = new ReadingLink($readingLink, $readingText);
-                //add it to the array for display
-                $this->readingLinks[] = $dailyReading;
-            }
-        }
-    }
-
-    private function fetchFreshData(): void
-    {
-        $this->fetchScriptureInfo();
-    }
     //TODO
-    public function saveScriptureLinksToDatabase(string $table): void
-    {
-        //We only load the scrape data once per day
-        //When the daily database name changes out
-        //For all other page hits - the links already stored (cached)
-        //in the database will be displayed.
-        //We are now hitting the site far less for the same data!
-        if (!$this->linkDatabaseExists()) {
-            //If the database doesn't exist
-            //then we definitely need to get the freshest data and load the links
-            $this->fetchFreshData();
-            //$this->dropCreateTable($table);
-            $this->insertLinks($table, $this->readingLinks, 'scriptures');
-        }
-    }
-
-    public function displayScriptureHTML()
-    {
-        $this->displayLinkHTML('Recent Readings', $this->readingLinks);
-    }
-
-
-    public function displayScriptureDatabaseLinks(string $table): void
-    {
-        $databaseLinks = $this->getAllLinks($table, 'scriptures');
-        $this->displayLinkHTML('Recent Readings', $databaseLinks);
-    }
 }
 
-class OCALivesOfSaints
+class OCALivesOfSaintsScraper //extends LinkElementDatabaseScraper
 {
     //provides different types of link patterns
     //for verification
     use ValidatesOrthodoxLinks;
 
-    //Display HTML table of link elements
-    //whether they be freshly scraped or from the database
-    use DisplaysLinks;
-
-    //Access to cached web scrape data in SQLITE
-    use LinkElementDatabase;
-
-    private const URL = "https://www.oca.org/saints/lives/";
-
-    private $saintSnippets;
-    private $saintLinksSort;
-    private $saintNamesSort;
-    private $html;
-
-    private $saintNames;
-    private $saintLinks;
-
-    public function __construct()
-    {
-        //open the url
-        $this->html = file_get_html(self::URL);
-        //create arrays to hold the formatted output
-        $this->saintSnippets = array();
-        $this->saintLinksSort = array();
-        $this->saintNamesSort = array();
-    }
-
-    public function fetchSaintInfo()
-    {
-        //find saint name headings
-        $this->saintNames = $this->html->find('article h2');
-        //find links for the saints life in the article
-        $this->saintLinks = $this->html->find('article a');
-
-        //construct fully qualified links for each of the saints
-        foreach ($this->saintLinks as $link) {
-            if ($this->isValidLinkType($link->href, $this->getLivesOfSaintsLinkPattern())) {
-                $saintLink = "https://www.oca.org" . $link->href;
-                $this->saintLinksSort[] = $saintLink;
-            }
-        }
-        //populate all the saint names (plain text, remove html/styling)
-        foreach ($this->saintNames as $saint) {
-            $this->saintNamesSort[] = $saint->plaintext;
-        }
-    }
-
-    public function prepareSaintHtml()
-    {
-        //sort the links
-        //this order will match the second array
-        asort($this->saintLinksSort);
-        try {
-            //TODO, rethink this
-            if (count($this->saintNamesSort) == count($this->saintLinksSort)) {
-                for ($i = 0; $i < count($this->saintNamesSort); $i++) {
-                    $saintLink = $this->saintLinksSort[$i];
-                    $saintName = $this->saintNamesSort[$i];
-
-                    $saint = new SaintLink($saintLink, $saintName);
-                    $this->saintSnippets[] = $saint;
-                }
-            }
-        } catch (UnexpectedValueException $e) {
-            error_log("ERR::CANNOT RENDER HTML, ARRAY NOT DIVISIBLE BY 2, CHECK ELEMENT COUNTS::err");
-        }
-    }
-
-    private function fetchFreshData(): void
-    {
-        $this->fetchSaintInfo();
-        $this->prepareSaintHtml();
-    }
-
-    public function saveSaintLinksToDatabase(string $table): void
-    {
-        //We only load the scrape data once per day
-        //When the daily database name changes out
-        //For all other page hits - the links already stored (cached)
-        //in the database will be displayed.
-        //We are now hitting the site far less for the same data!
-        if (!$this->linkDatabaseExists()) {
-            //If the database doesn't exist
-            //then we definitely need to get the freshest data and load the links
-            $this->fetchFreshData();
-            //$this->dropCreateTable($table);
-            $this->insertLinks($table, $this->saintSnippets, 'saints');
-        }
-    }
-
-    public function displaySaintHTML()
-    {
-        $this->displayLinkHTML('Daily Saints', $this->saintSnippets);
-    }
-
-
-    public function displaySaintDatabaseLinks(string $table): void
-    {
-        $databaseLinks = $this->getAllLinks($table, 'saints');
-        $this->displayLinkHTML('Daily Saints', $databaseLinks);
-    }
-}
-
-class BibleGateway
-{
-    public const URL = 'http://www.biblegateway.com';
-
-    protected $version;
-    protected $reference;
-    protected $text = '';
-    protected $copyright = '';
-    protected $permalink;
-
-    public function __construct($version = 'KJV')
-    {
-        $this->version = $version;
-    }
-
-    public function __get($name)
-    {
-        if ($name === 'permalink') {
-            return $this->permalink = self::URL . '/passage?' . http_build_query(['search' => $this->reference, 'version' => $this->version]);
-        }
-        return $this->$name;
-    }
-
-    public function __set($name, $value)
-    {
-        if (in_array($name, ['version', 'reference'])) {
-            $this->$name = $value;
-            $this->searchPassage($this->reference);
-        }
-    }
-
-    public function searchPassage($passage)
-    {
-        $this->reference = $passage;
-        $this->text = '';
-        $url = self::URL . '/passage?' . http_build_query(['search' => $passage, 'version' => $this->version]);
-        $html = file_get_contents($url);
-        $dom = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $dom->loadHTML($html);
-        libxml_use_internal_errors(false);
-        $xpath = new \DOMXPath($dom);
-        $context = $xpath->query("//div[@class='passage-wrap']")->item(0);
-        $paragraphs = $xpath->query("//div[@class='passage-wrap']//p");
-        $verses = $xpath->query("//div[@class='passage-wrap']//span[contains(@class, 'text')]");
-        foreach ($paragraphs as $paragraph) {
-            if ($xpath->query('.//span[contains(@class, "text")]', $paragraph)->length) {
-                $results = $xpath->query("//sup[contains(@class, 'crossreference') or contains(@class, 'footnote')] | //div[contains(@class, 'crossrefs') or contains(@class, 'footnotes')]", $paragraph);
-                foreach ($results as $result) {
-                    $result->parentNode->removeChild($result);
-                }
-                $this->text .= $dom->saveHTML($paragraph);
-            } else {
-                $this->copyright = $dom->saveHTML($paragraph);
-            }
-        }
-        return $this;
-    }
-
-    public function getVerseOfTheDay()
-    {
-        $url = self::URL . '/votd/get/?' . http_build_query(['format' => 'json', 'version' => $this->version]);
-        $votd = json_decode(file_get_contents($url))->votd;
-        $this->text = $votd->text;
-        $this->reference = $votd->reference;
-        return $this;
-    }
+    //TODO
 }

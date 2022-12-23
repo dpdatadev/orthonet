@@ -82,15 +82,11 @@ final class MiniScrapeFrameworkTest extends TestCase
 {
     protected function getOrthodoxPodcastScraper(): ScrapingTest\Scraper
     {
-        //Create a custom Scraper Factory which contains the configuration for instantiating our different page scrapers
-        $scraperFactory = new OrthodoxScraperFactory();
         //This is a scraper for getting Recent Podcast episodes from Ancient Faith Ministries
         $scrapeType = 'Podcasts';
         $scrapeUrl = "https://www.ancientfaith.com/podcasts#af-recent-episodes";
         //Create the Scraper
-        $testScraper = $scraperFactory::createScraper($scrapeType, $scrapeUrl);
-
-        return $testScraper;
+        return OrthodoxScraperFactory::createScraper($scrapeType, $scrapeUrl);
     }
 
     /**

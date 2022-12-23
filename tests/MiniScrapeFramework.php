@@ -464,17 +464,16 @@ class AncientFaithPodcastScraper extends LinkElementDatabaseScraper
     }
     public function prepareInfo(): void
     {
-        try {
-            //We want a unique and reverse sorted collection
-            //And we only want to show the first 25 elements
-            if (count($this->podcastLinks) > 1) {
-                $this->podcastLinks = array_unique($this->podcastLinks);
-                rsort($this->podcastLinks);
-                $this->podcastLinks = array_slice($this->podcastLinks, 0, 25);
-            }
+        //We want a unique and reverse sorted collection
+        //And we only want to show the first 25 elements
+        if (count($this->podcastLinks) > 1)
+        {
+            $this->podcastLinks = array_unique($this->podcastLinks);
+            rsort($this->podcastLinks);
+            $this->podcastLinks = array_slice($this->podcastLinks, 0, 25);
             $this->setScrapeData($this->podcastLinks);
-        } catch (UnexpectedValueException $e) {
-            error_log("ERR::CANNOT RENDER HTML::err");
+        } else {
+            throw new UnexpectedValueException("ERR::CANNOT RENDER HTML::err::no data");
         }
     }
 

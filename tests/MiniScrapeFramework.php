@@ -10,7 +10,8 @@ require_once './vendor/autoload.php';
 //opensource PHP web scraping library
 require_once 'simple_html_dom.php';
 
-use \Doctrine\DBAL\Connection;
+use ReflectionObject as ObjectInspector;
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 
 
@@ -19,7 +20,7 @@ use http\Exception\InvalidArgumentException;
 use http\Exception\UnexpectedValueException;
 
 use function file_get_html as fetch_html;
-use function PHPUnit\Framework\objectHasAttribute;
+//use function PHPUnit\Framework\objectHasAttribute;
 
 //#[AllowDynamicProperties] PHP 8.2 will deprecate dynamic properties outside of stdClass
 class LinkElement
@@ -103,6 +104,27 @@ class SaintLink extends LinkElement
 {
 }
 
+trait DisplaysLinks
+{
+    protected function displayLinkHTML(string $displayName, array $links): void
+    {
+        echo "<div class='container text-center'>";
+        echo "<br />";
+        echo "<h2>" . $displayName . "</h2>";
+        echo "<br />";
+
+        foreach ($links as $link) {
+            echo $link->displayHTML();
+        }
+        echo "<ul>";
+
+        echo "</ul>";
+        echo "<br />";
+        echo "</div>";
+        echo "<hr />";
+    }
+}
+
 trait ValidatesOrthodoxLinks
 {
     //TODO, there's a better way to handle uri validation..
@@ -138,7 +160,6 @@ final class SQLITEManager
 {
     public function __construct()
     {
-
     }
 
     public static function getSqlite3Connection(): Connection
@@ -147,9 +168,7 @@ final class SQLITEManager
         return DriverManager::getConnection($attrs);
     }
 
-    //TODO, add method to delete current database
-
-    public static function createDatabaseTable(string $table, string $columns) : void
+    public static function createDatabaseTable(string $table, string $columns): void
     {
         if (!self::linkDatabaseExists()) {
             //If the daily database doesn't exist
@@ -333,19 +352,20 @@ abstract class LinkElementScraper implements Scraper
         return $this->scrapeUrl;
     }
 
+    //TODO
     public function getRawHtml(): mixed
     {
-        if (objectHasAttribute($this->html, 'plaintext'))
+        if ((new ObjectInspector($this->getHtml()))->hasProperty('plaintext'))
         {
-            return $this->html->plaintext;
+            return $this->getHtml()->plaintext;
         } else {
-            throw new UnexpectedValueException("Simple DOM error, no HTML to display! Make sure to call downloadHtml() first.");
+            throw new \Exception("Simple DOM error, no HTML to display! Make sure to call downloadHtml() first.");
         }
     }
 
     public function getHtml(): mixed
     {
-       return $this->html;
+        return $this->html;
     }
 
     public function downloadHtml(): void
@@ -389,16 +409,6 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
     public function __construct(string $scrapeUrl)
     {
         parent::__construct($scrapeUrl);
-
-    }
-
-    public static function createLinkDatabaseTable(string $table)
-    {
-        if (!self::linkDatabaseExists()) {
-            //If the daily database doesn't exist
-            //then we definitely need to get the freshest data and load the links
-            self::dropCreateTable($table);
-        }
     }
 
     public static function saveLinksToDatabase(string $table, array $links, string $category): void
@@ -483,133 +493,6 @@ class AncientFaithPodcastScraper extends LinkElementDatabaseScraper
        $databaseLinks = $this->getLinksFromDatabase($table, 'podcasts');
        $this->displayLinkHTML('Recent Podcasts', $databaseLinks);
    }
-}
-
-trait DisplaysLinks
-{
-    protected function displayLinkHTML(string $displayName, array $links): void
-    {
-        echo "<div class='container text-center'>";
-        echo "<br />";
-        echo "<h2>" . $displayName . "</h2>";
-        echo "<br />";
-
-        foreach ($links as $link) {
-            echo $link->displayHTML();
-        }
-        echo "<ul>";
-
-        echo "</ul>";
-        echo "<br />";
-        echo "</div>";
-        echo "<hr />";
-    }
-}
-
-//Recent Podcast Episodes published by Ancient Faith
-class AncientFaithPodcasts
-{
-    //provides different types of link patterns
-    //for verification
-    use ValidatesOrthodoxLinks;
-
-    //Display HTML table of link elements
-    //whether they be freshly scraped or from the database
-    use DisplaysLinks;
-
-    //Access to cached web scrape data in SQLITE
-    use LinkElementDatabaseAccess;
-
-    //most recent podcasts from Ancient Faith Ministries
-    private const URL = "https://www.ancientfaith.com/podcasts#af-recent-episodes";
-
-    //harvested podcast links
-    private $podcastLinks;
-    //loaded web page
-    private $html;
-
-    public function __construct()
-    {
-        $this->podcastLinks = array();
-
-        $this->html = file_get_html(self::URL);
-    }
-
-    public function getPodcastLinkCount()
-    {
-        return array('count' => count($this->podcastLinks));
-    }
-
-    public function fetchPodcastInfo()
-    {
-        $podcasts = $this->html->find('a');
-
-        foreach ($podcasts as $podcast) {
-            if ($this->isValidLinkType($podcast->href, $this->getPodcastLinkPattern())) {
-                $podcastLink = "https://www.ancientfaith.com" . $podcast->href;
-                $podcastText = $podcast->plaintext;
-
-                $newPodcast = new PodcastLink($podcastLink, $podcastText);
-
-                $this->podcastLinks[] = $newPodcast;
-            }
-        }
-    }
-
-    public function preparePodcastHTML()
-    {
-        try {
-            //TODO - 12/3/2022
-            //TODO - remove hard-coding for only the types of podcasts we are interested in
-            //TODO - well...filtering isn't the problem but hard-coding the categories probably is
-
-            //Now only assuming that we actually have podcasts to display;
-            //ensure the collection is unique and reverse sort
-            if (count($this->podcastLinks) > 1) {
-                $this->podcastLinks = array_unique($this->podcastLinks);
-                rsort($this->podcastLinks);
-                $this->podcastLinks = array_slice($this->podcastLinks, 0, 25);
-            }
-            //if at any time values aren't present in either array
-            //then the state of this operation is to be considered very non-kosher
-        } catch (UnexpectedValueException $e) {
-            error_log("ERR::CANNOT RENDER HTML::err");
-        }
-    }
-
-    private function fetchFreshData(): void
-    {
-        $this->fetchPodcastInfo();
-        $this->preparePodcastHTML();
-    }
-
-    public static function savePodCastLinksToDatabase(string $table): void
-    {
-        //We only load the scrape data once per day
-        //When the daily database name changes out
-        //For all other page hits - the links already stored (cached)
-        //in the database will be displayed.
-        //We are now hitting the site far less for the same data!
-        if (!self::linkDatabaseExists()) {
-            //If the database doesn't exist
-            //then we definitely need to get the freshest data and load the links
-            self::fetchFreshData();
-            self::dropCreateTable($table);
-            self::insertLinks($table, self::podcastLinks, 'podcasts');
-        }
-    }
-
-    public function displayPodcastHTML()
-    {
-        $this->displayLinkHTML('Recent Podcasts', $this->podcastLinks);
-    }
-
-
-    public function displayDatabasePodcastLinks(string $table): void
-    {
-        $databaseLinks = $this->getAllLinks($table, 'podcasts');
-        $this->displayLinkHTML('Recent Podcasts', $databaseLinks);
-    }
 }
 
 class OCADailyReadingsScraper //extends LinkElementDatabaseScraper

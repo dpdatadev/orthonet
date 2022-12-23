@@ -93,6 +93,9 @@ final class MiniScrapeFrameworkTest extends TestCase
         return $testScraper;
     }
 
+    /**
+     * @group ignore
+     */
     public function test_create_database_and_web_scrape_table_and_verify_success(): void
     {
         //We are testing to ensure that we can create the database and table only once and then insert links
@@ -175,12 +178,14 @@ final class MiniScrapeFrameworkTest extends TestCase
     }
 
 
+    /**
+     * @group ignore
+     */
     public function test_loading_existing_data_without_scraping(): void
     {
         $testScraper = $this->getOrthodoxPodcastScraper();
 
-        if (SQLITEManager::linkDatabaseExists())
-        {
+        if (SQLITEManager::linkDatabaseExists()) {
             //We ran one fresh podcast scrape in the test prior
             $expectedCount = 25;
 
@@ -192,5 +197,24 @@ final class MiniScrapeFrameworkTest extends TestCase
 
             $testScraper->displayDatabaseScrapeHTML('web_scrape_data');
         }
+    }
+
+    /**
+     * @group ignore
+     */
+    public function testScraperCanReturnRawHTML(): void
+    {
+        $testScraper = $this->getOrthodoxPodcastScraper();
+        $link = 'a';//standard <a href='..'>link</a>
+
+        $testScraper->fetchInfo($link);
+
+        $rawHtml = $testScraper->getRawHtml();
+
+        $this->assertNotEmpty($rawHtml);
+        $this->assertNotNull($rawHtml);
+        $this->assertIsString($rawHtml);
+
+        echo $rawHtml;
     }
 }

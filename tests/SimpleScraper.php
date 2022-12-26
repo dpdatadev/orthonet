@@ -1,9 +1,11 @@
 <?php
 
+//TODO (12/25/2022) - replace comments with PHPDocs
+
 /** @noinspection ALL */
 declare(strict_types=1);
 
-namespace ScrapingTest;
+namespace SimpleScraper;
 
 //dependencies
 require_once './vendor/autoload.php';
@@ -156,32 +158,28 @@ trait ValidatesOrthodoxLinks
 //Somewhat of a cache for the frontend -
 define('DAILY_DATABASE', "link_database_" . date('y_m_d') . ".db");
 
-final class SQLITEManager
+abstract class SQLITEManager
 {
     public function __construct()
     {
     }
 
-    public static function getSqlite3Connection(): Connection
+    public final static function getSqlite3Connection(): Connection
     {
         $attrs = ['driver' => 'pdo_sqlite', 'path' => DAILY_DATABASE];
         return DriverManager::getConnection($attrs);
     }
 
-    public static function createDatabaseTable(string $table, string $columns): void
+    public final static function createDatabaseTable(string $table, string $columns): void
     {
-        if (!self::linkDatabaseExists()) {
-            //If the daily database doesn't exist
-            //then we definitely need to get the freshest data and load the links
-            self::dropCreateTable($table, $columns);
-        }
+        self::dropCreateTable($table, $columns);
     }
-    public static function linkDatabaseExists(): bool
+    public final static function linkDatabaseExists(): bool
     {
         return file_exists(DAILY_DATABASE);
     }
 
-    public static function dropCreateTable(string $table, string $tableSQL): void
+    private static function dropCreateTable(string $table, string $tableSQL): void
     {
         $conn = self::getSqlite3Connection();
         $conn->executeQuery('DROP TABLE IF EXISTS ' . $table . ';');
@@ -306,9 +304,9 @@ final class OrthodoxScraperFactory implements ScraperFactory
     public static function createScraper(string $scraperType, string $scrapeUrl): Scraper
     {
         $scraperClient = match ($scraperType) {
-            'Podcasts' => new AncientFaithPodcastScraper($scrapeUrl),
-            'Saints' => new OCALivesOfSaintsScraper(),
-            'Readings' => new OCADailyReadingsScraper()
+            'Podcasts' => new AncientFaithPodcastLinkScraper($scrapeUrl),
+            'Saints' => new OCALivesOfSaintLinkScraper(),
+            'Readings' => new OCADailyReadingLinkScraper()
         };
 
         return $scraperClient;
@@ -352,7 +350,7 @@ abstract class LinkElementScraper implements Scraper
         return $this->scrapeUrl;
     }
 
-    //TODO
+    //TODO (12/25/2022)
     public function getRawHtml(): mixed
     {
         if ((new ObjectInspector($this->getHtml()))->hasProperty('plaintext'))
@@ -411,8 +409,9 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
         parent::__construct($scrapeUrl);
     }
 
-    public static function saveLinksToDatabase(string $table, array $links, string $category): void
+    public function saveLinksToDatabase(string $table, string $category): void
     {
+        $links = $this->getScrapeData();
         if (empty($links) || (count($links) < 1)) {
             throw new UnexpectedValueException("ERR::NO DATA TO INSERT TO DATABASE PROVIDED::UnexpectedValue::" . PHP_EOL);
         } else {
@@ -430,7 +429,8 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
 //to scrape Orthodox Christian websites
 //Here we only care about what is specific to the exact kind of data
 //we want to scrape
-class AncientFaithPodcastScraper extends LinkElementDatabaseScraper
+//The class is final because nothing should further extend our customized scraper client
+final class AncientFaithPodcastLinkScraper extends LinkElementDatabaseScraper
 {
     //provides different types of link patterns
     //for verification
@@ -459,7 +459,7 @@ class AncientFaithPodcastScraper extends LinkElementDatabaseScraper
                 }
             }
         } else {
-            throw new InvalidArgumentException("PAGE PARAM must be valid"); //TODO
+            throw new InvalidArgumentException("PAGE PARAM must be valid");
         }
     }
     public function prepareInfo(): void
@@ -494,7 +494,7 @@ class AncientFaithPodcastScraper extends LinkElementDatabaseScraper
    }
 }
 
-class OCADailyReadingsScraper //extends LinkElementDatabaseScraper
+class OCADailyReadingLinkScraper //extends LinkElementDatabaseScraper
 {
     //provides different types of link patterns
     //for verification
@@ -503,7 +503,7 @@ class OCADailyReadingsScraper //extends LinkElementDatabaseScraper
     //TODO
 }
 
-class OCALivesOfSaintsScraper //extends LinkElementDatabaseScraper
+class OCALivesOfSaintLinkScraper //extends LinkElementDatabaseScraper
 {
     //provides different types of link patterns
     //for verification

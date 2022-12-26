@@ -68,19 +68,20 @@
 
 declare(strict_types=1);
 
-require_once 'MiniScrapeFramework.php';
+require_once 'SimpleScraper.php';
 
 error_reporting(E_ALL);
 
 use PHPUnit\Framework\TestCase;
-use ScrapingTest\AncientFaithPodcastScraper;
-use ScrapingTest\OrthodoxScraperFactory;
-use ScrapingTest\SQLITEManager;
+
+use SimpleScraper\OrthodoxScraperFactory;
+use SimpleScraper\SQLITEManager;
+use SimpleScraper\Scraper;
 
 //Full API Test -- TODO, further refine tests (fixtures, mocks, etc.,)
-final class MiniScrapeFrameworkTest extends TestCase
+final class SimpleScraperTest extends TestCase
 {
-    protected function getOrthodoxPodcastScraper(): ScrapingTest\Scraper
+    protected function getOrthodoxPodcastScraper(): Scraper
     {
         //This is a scraper for getting Recent Podcast episodes from Ancient Faith Ministries
         $scrapeType = 'Podcasts';
@@ -100,6 +101,7 @@ final class MiniScrapeFrameworkTest extends TestCase
         $this->assertTrue(SQLITEManager::linkDatabaseExists());
     }
 
+    //DEPRECATED
     /**
      * @group ignore
      */
@@ -136,7 +138,7 @@ final class MiniScrapeFrameworkTest extends TestCase
         //Now we'll interact with the database which will have been created in the test above
         //==================================================================================
         //The data being inserted into the database is the freshly scraped and prepared data that fetchInfo() returned.
-        AncientFaithPodcastScraper::saveLinksToDatabase('web_scrape_data', $testScraper->getScrapeData(), 'podcasts');
+        $testScraper->saveLinksToDatabase('web_scrape_data', 'podcasts');
 
         //Now to test that the links were properly saved to the database we will fetch and test
         $testDatabaseLinks = $testScraper->getLinksFromDatabase('web_scrape_data', 'podcasts');
@@ -174,25 +176,22 @@ final class MiniScrapeFrameworkTest extends TestCase
     }
 
 
-    /**
-     * @group ignore
-     */
     public function test_loading_existing_data_without_scraping(): void
     {
         $testScraper = $this->getOrthodoxPodcastScraper();
 
-        if (SQLITEManager::linkDatabaseExists()) {
-            //We ran one fresh podcast scrape in the test prior
-            $expectedCount = 25;
+        $this->assertTrue(SQLITEManager::linkDatabaseExists());
+        //We ran one fresh podcast scrape in the test prior
+        $expectedCount = 25;
 
-            $testCount = count($testScraper->getLinksFromDatabase('web_scrape_data', 'podcasts'));
+        $testCount = count($testScraper->getLinksFromDatabase('web_scrape_data', 'podcasts'));
 
-            $this->assertSame($expectedCount, $testCount);
+        $this->assertSame($expectedCount, $testCount);
 
-            $testScraper->setDebugOn(); //show the SQL for the below operation
+        $testScraper->setDebugOn(); //show the SQL for the below operation
 
-            $testScraper->displayDatabaseScrapeHTML('web_scrape_data');
-        }
+        $testScraper->displayDatabaseScrapeHTML('web_scrape_data');
+
     }
 
     /**
@@ -201,9 +200,10 @@ final class MiniScrapeFrameworkTest extends TestCase
     public function testScraperCanReturnRawHTML(): void
     {
         $testScraper = $this->getOrthodoxPodcastScraper();
-        $link = 'a';//standard <a href='..'>link</a>
+        $linksParam = 'a';//standard <a href='..'>link</a>
 
-        $testScraper->fetchInfo($link);
+        $testScraper->fetchInfo($linksParam);
+        $testScraper->prepareInfo();
 
         $rawHtml = $testScraper->getRawHtml();
 

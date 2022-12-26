@@ -1,6 +1,6 @@
 <?php
 
-require 'MiniScrapeFramework.php';
+require 'SimpleScraper.php';
 
 
 use ScrapingTest\AncientFaithPodcasts;

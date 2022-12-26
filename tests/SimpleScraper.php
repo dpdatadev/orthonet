@@ -482,16 +482,27 @@ final class AncientFaithPodcastLinkScraper extends LinkElementDatabaseScraper
         return array('count' => count($this->getScrapeData()));
     }
 
-   public function displayScrapeHTML(): void
-   {
-       $this->displayLinkHTML('Recent Podcasts', $this->getScrapeData());
-   }
+    public function displayScrapeHTML(): void
+    {
+        $links = $this->getScrapeData();
+        if(count($links) < 1)
+        {
+            throw new UnexpectedValueException("ERR::No scraped data -- did you fetch and prepare?::");
+        } else {
+            $this->displayLinkHTML('Recent Podcasts', $this->getScrapeData());
+        }
+    }
 
-   public function displayDatabaseScrapeHTML(string $table): void
-   {
-       $databaseLinks = $this->getLinksFromDatabase($table, 'podcasts');
-       $this->displayLinkHTML('Recent Podcasts', $databaseLinks);
-   }
+    public function displayDatabaseScrapeHTML(string $table): void
+    {
+        $databaseLinks = $this->getLinksFromDatabase($table, 'podcasts');
+        if (count($databaseLinks) < 1)
+        {
+            throw new UnexpectedValueException("ERR::No Database Links for category [podcasts]::");
+        } else {
+            $this->displayLinkHTML('Recent Podcasts', $databaseLinks);
+        }
+    }
 }
 
 class OCADailyReadingLinkScraper //extends LinkElementDatabaseScraper
@@ -503,11 +514,113 @@ class OCADailyReadingLinkScraper //extends LinkElementDatabaseScraper
     //TODO
 }
 
-class OCALivesOfSaintLinkScraper //extends LinkElementDatabaseScraper
+final class OCALivesOfSaintLinkScraper extends LinkElementDatabaseScraper
 {
     //provides different types of link patterns
     //for verification
     use ValidatesOrthodoxLinks;
 
-    //TODO
+    private $saintSnippets; //setScrapeData
+    private $saintLinksSort;
+    private $saintNamesSort;
+
+    private $saintNames;
+    private $saintLinks;
+
+    public function __construct(string $scrapeUrl)
+    {
+        parent::__construct($scrapeUrl);
+
+        //create arrays to hold the formatted output
+        //this scraper requires a good bit of formatting
+        $this->saintSnippets = array();
+        $this->saintLinksSort = array();
+        $this->saintNamesSort = array();
+    }
+
+    public function fetchInfo(string $pageParam): void
+    {
+        $this->saintNames = $this->getHtml()->find('article h2');
+        $this->saintLinks = $this->getHtml()->find('article a');
+
+        //construct fully qualified links for each of the saints
+        foreach ($this->saintLinks as $link) {
+            if ($this->isValidLinkType($link->href, $this->getLivesOfSaintsLinkPattern())) {
+                $saintLink = "https://www.oca.org" . $link->href;
+                $this->saintLinksSort[] = $saintLink;
+            }
+        }
+
+        //populate all the saint names (plain text, remove html/styling)
+        foreach ($this->saintNames as $saint) {
+            $this->saintNamesSort[] = $saint->plaintext;
+        }
+
+    }
+
+    public function prepareInfo(): void
+    {
+        //sort the links
+        //this order will match the second array
+        asort($this->saintLinksSort);
+        //We need to have the keys reset
+        //to match the same integer index values as the second array.
+        //We do this because we're going to iterate over the arrays
+        //and create an object with each element of each array
+        //corresponding to a property ex. Object(link, text) -
+        //link is from array1, text is from array2.
+        //removed 12/2/2022
+        //array_values($this->saintLinksSort);
+
+        //there could be varying number of saints each day
+        //we will only work with the top 3
+        //removed 12/1/2022, may come back in the future
+        //array_splice($this->saintNamesSort, 0, 3);
+        //array_splice($this->saintLinksSort, 0, 3);
+
+
+        //now we will start accessing the arrays to build the display objects
+
+        //we must ensure that the above operations were successful
+        if (count($this->saintNamesSort) == count($this->saintLinksSort)) {
+            for ($i = 0; $i < count($this->saintNamesSort); $i++) {
+                $saintLink = $this->saintLinksSort[$i];
+                $saintName = $this->saintNamesSort[$i];
+
+                $saint = new SimpleScraper\SaintLink($saintLink, $saintName);
+                $this->saintSnippets[] = $saint;
+            }
+
+            $this->setScrapeData($this->saintSnippets);
+        } else {
+            throw new UnexpectedValueException("ERR::CANNOT RENDER HTML, ARRAY NOT DIVISIBLE BY 2, CHECK ELEMENT COUNTS::err");
+        }
+    }
+
+    public function getSaintLinkCount()
+    {
+        return array('count' => count($this->getScrapeData()));
+    }
+
+    public function displayScrapeHTML(): void
+    {
+        $links = $this->getScrapeData();
+        if(count($links) < 1)
+        {
+            throw new UnexpectedValueException("ERR::No scraped data -- did you fetch and prepare?::");
+        } else {
+            $this->displayLinkHTML('Daily Saints', $this->getScrapeData());
+        }
+    }
+
+    public function displayDatabaseScrapeHTML(string $table): void
+    {
+        $databaseLinks = $this->getLinksFromDatabase($table, 'saints');
+        if (count($databaseLinks) < 1)
+        {
+            throw new UnexpectedValueException("ERR::No Database Links for category [saints]::");
+        } else {
+            $this->displayLinkHTML('Daily Saints', $databaseLinks);
+        }
+    }
 }

@@ -1,6 +1,73 @@
 <?php
 
+/*
+ * Abstract/Synopsis
+ * dpdatadev
+ * 12/21/2022
+ *
+ * The main API/tool that this mini framework is built on is --> simple_html_dom PHP library
+ * a single class, single file, PHP HTML library
+ *
+ * I want an easy and extensible set of classes that will use simple_html_dom to do these things:
+ *
+ * Scrape Links, Images, and Text from websites (I intend to scrape Orthodox Christian websites in my projects)
+ *(^^Right now only Link and PlainText are supported)
+ *
+ * I want the tool to be able to display scraped data, return scraped data as objects, and be able to
+ * store and retrieve the web scrape data inside a database. For now that is a small and simple SQLITE database.
+ *
+ * I could use simple_html_dom to procedurally scrape the data, repeat the steps for each site, and use
+ * the PHP SQLITE3 library, maybe write a few functions, to store the data.
+ *
+ * If I could write a reusable set of classes to make it easy to drop into a larger project and is easily extensible-
+ * that would be ideal.
+ *
+ * A web scraper is an object that can download a html webpage and extract information from it then either:
+ * display the data
+ * return the raw data
+ * or store and retrieve the data in a relational database.
+ *
+ * A LinkElement is a class that represents an HTML link tag that consists of an HREF URI and a text element that describes the link.
+ * A LinkElement web scraper is a scraper that does the things mentioned above but specifically for links in an HTML web page.
+ *
+ * The trait "LinkElementDatabase" provides functions for interacting with a (SQLITE) database.
+ *
+ * With the nature of the web pages I'm scraping for my website, I just need to fresh scrape data a few times a day.
+ * The majority of the web requests being sent to the page can return data that has already been scraped and stored in the database.
+ * It doesn't have to be a relational database, it could be noSQL, or it could be Redis.
+ * But nonetheless - something that caches the data and doesn't require scraping the data fresh on every page request.
+ *
+ * I plan on writing some commands that can be called a few times a day to load fresh data and shouldn't manage
+ * conditionally loading the database during the HTTP request lifecycle - only reading and displaying whatever data is available
+ * in the database.
+ *
+ * The mini framework allows for scraper factories to be defined that will allow the system
+ * to know how to configure and instantiate your custom scrapers of what kind.
+ *
+ * The custom scraper client that you implement will need to decide how to display or use the data
+ * in whatever particular way you see fit.
+ *
+ * The utility classes provided just prevent you from having to make the same boilerplate code
+ * for:
+ * 1. Connecting to the webpage
+ * 2. Downloading the webpage
+ * 3. Returning the contents of the webpage
+ * 4. Finding, validating, and returning certain elements of the webpage (i.e Links)
+ * 5. Saving the elements to a database table
+ * 6. Retrieving the elements from a database table
+ *
+ * Whatever you do from there is for you to focus on HOW the data should be used in your application.
+ */
+
+
 //TODO (12/25/2022) - replace comments with PHPDocs
+//TODO install composer version of simple_html_dom
+//TODO -- reading:
+/*
+ * https://blog.eleven-labs.com/en/dependency-injection/
+ * https://getcomposer.org/doc/05-repositories.md#path
+ * https://hackthestuff.com/article/create-package-for-php-with-composer#:~:text=Create%20package%20for%20PHP%20with%20composer%201%20composer.json,package%20in%20your%20Project%20...%204%20Conclusion%20
+ */
 
 /** @noinspection ALL */
 declare(strict_types=1);
@@ -13,16 +80,15 @@ require_once './vendor/autoload.php';
 require_once 'simple_html_dom.php';
 
 use ReflectionObject as ObjectInspector;
+
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
-
-
 use Doctrine\DBAL\FetchMode;
+
 use http\Exception\InvalidArgumentException;
 use http\Exception\UnexpectedValueException;
 
 use function file_get_html as fetch_html;
-//use function PHPUnit\Framework\objectHasAttribute;
 
 //#[AllowDynamicProperties] PHP 8.2 will deprecate dynamic properties outside of stdClass
 class LinkElement
@@ -91,68 +157,32 @@ class LinkElement
     }
 }
 
-//Ancient Faith Recent Podcasts
-class PodcastLink extends LinkElement
-{
-}
-
-//OCA Daily Scripture Readings
-class ReadingLink extends LinkElement
-{
-}
-
-//OCA Life of Saint Readings
-class SaintLink extends LinkElement
-{
-}
-
 trait DisplaysLinks
 {
     protected function displayLinkHTML(string $displayName, array $links): void
     {
-        echo "<div class='container text-center'>";
-        echo "<br />";
-        echo "<h2>" . $displayName . "</h2>";
-        echo "<br />";
-
-        foreach ($links as $link) {
-            echo $link->displayHTML();
-        }
-        echo "<ul>";
-
-        echo "</ul>";
-        echo "<br />";
-        echo "</div>";
-        echo "<hr />";
-    }
-}
-
-trait ValidatesOrthodoxLinks
-{
-    //TODO, there's a better way to handle uri validation..
-    //Traits can't have constants until PHP 8.2 I think....
-    public function getPodcastLinkPattern(): string
-    {
-        return '/podcasts/';
-    }
-    public function getScriptureLinkPattern(): string
-    {
-        return 'readings/daily';
-    }
-    public function getLivesOfSaintsLinkPattern(): string
-    {
-        return 'lives';
-    }
-
-    public function isValidLinkType(string $link, string $linkType)
-    {
-        if (str_contains($link, $linkType)) {
-            return true;
+        if(count($links) < 1)
+        {
+            throw new UnexpectedValueException("ERR::NO LINKS TO DISPLAY!::");
         } else {
-            return false;
+            echo "<div class='container text-center'>";
+            echo "<br />";
+            echo "<h2>" . $displayName . "</h2>";
+            echo "<br />";
+
+            foreach ($links as $link) {
+                echo $link->displayHTML();
+            }
+            echo "<ul>";
+
+            echo "</ul>";
+            echo "<br />";
+            echo "</div>";
+            echo "<hr />";
         }
     }
 }
+
 
 //Daily generated SQLITE database to hold web scrape data
 //Somewhat of a cache for the frontend -
@@ -277,6 +307,10 @@ interface Scraper
     public function getHtml(): mixed;
     //Scrapers will return the raw plaintext HTML from the SimpleDOM object
     public function getRawHtml(): mixed;
+    //Scrapers will be able to clear out HTML values from memory
+    //This can happen either on demand via this function and/or
+    //be part of the destructor() for the implementing class.
+    public function clearHtml(): void;
     //Scraper clients will fetch information from the HTML
     //using XPATH or CSS SELECT
     public function fetchInfo(string $pageParam): void;
@@ -298,22 +332,6 @@ interface ScraperFactory
     //Provide the type of scraper and also the scrapeUrl that will be used to construct it
     public static function createScraper(string $scraperType, string $scrapeUrl): Scraper;
 }
-
-final class OrthodoxScraperFactory implements ScraperFactory
-{
-    public static function createScraper(string $scraperType, string $scrapeUrl): Scraper
-    {
-        $scraperClient = match ($scraperType) {
-            'Podcasts' => new AncientFaithPodcastLinkScraper($scrapeUrl),
-            'Saints' => new OCALivesOfSaintLinkScraper(),
-            'Readings' => new OCADailyReadingLinkScraper()
-        };
-
-        return $scraperClient;
-    }
-}
-
-
 
 //A Scraper which specializes in HTML Links
 //It is neccessary to derive this class for further customization
@@ -342,6 +360,24 @@ abstract class LinkElementScraper implements Scraper
             $this->scrapeUrl = $scrapeUrl;
         } else {
             throw new \InvalidArgumentException("SCRAPE URL must be valid URI :: HOST/PATH REQUIRED");
+        }
+    }
+
+    //Some of the webpages could be large
+    //Clean up memory
+    public function __destruct()
+    {
+        if ($this->getHtml() !== null || !empty($this->getHtml()))
+        {
+            $this->clearHtml();
+        }
+    }
+
+    public function clearHtml(): void
+    {
+        if ((new ObjectInspector($this->getHtml()))->hasMethod('clear'))
+        {
+            $this->getHtml()->clear();
         }
     }
 
@@ -388,7 +424,7 @@ abstract class LinkElementScraper implements Scraper
     {
         $isValid = false;
 
-        if (str_contains($pageParam, 'a') || str_contains($pageParam, 'li') || str_contains($pageParam, 'href')) {
+        if (str_contains($pageParam, 'a') || str_contains($pageParam, 'li') || str_contains($pageParam, 'href') || str_contains('article')) {
             $isValid = true;
         }
 
@@ -409,7 +445,7 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
         parent::__construct($scrapeUrl);
     }
 
-    public function saveLinksToDatabase(string $table, string $category): void
+    public function saveLinksToDatabase(string $category, string $table = 'web_scrape_data', ): void
     {
         $links = $this->getScrapeData();
         if (empty($links) || (count($links) < 1)) {
@@ -419,208 +455,8 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
         }
     }
 
-    public function getLinksFromDatabase(string $table, string $category): array
+    public function getLinksFromDatabase(string $category, string $table = 'web_scrape_data', ): array
     {
         return $this->getAllLinks($table, $category);
-    }
-}
-
-//Webscraper meant to be derived by classes which will be used
-//to scrape Orthodox Christian websites
-//Here we only care about what is specific to the exact kind of data
-//we want to scrape
-//The class is final because nothing should further extend our customized scraper client
-final class AncientFaithPodcastLinkScraper extends LinkElementDatabaseScraper
-{
-    //provides different types of link patterns
-    //for verification
-    use ValidatesOrthodoxLinks;
-
-    //We need a property to function as our scrape data
-    //We will pass this to setScrapeData($podcastLinks)
-    private array $podcastLinks;
-    public function __construct(string $scrapeUrl)
-    {
-        parent::__construct($scrapeUrl);
-        $this->podcastLinks = array();
-    }
-    public function fetchInfo(string $pageParam): void
-    {
-        if ($this->validatePageParam($pageParam)) {
-            $this->downloadHtml();
-            foreach ($this->getHtml()->find($pageParam) as $podcast) {
-                if ($this->isValidLinkType($podcast->href, $this->getPodcastLinkPattern())) {
-                    $podcastLink = "https://www.ancientfaith.com" . $podcast->href;
-                    $podcastText = $podcast->plaintext;
-
-                    $newPodcast = new PodcastLink($podcastLink, $podcastText);
-
-                    $this->podcastLinks[] = $newPodcast;
-                }
-            }
-        } else {
-            throw new InvalidArgumentException("PAGE PARAM must be valid");
-        }
-    }
-    public function prepareInfo(): void
-    {
-        //We want a unique and reverse sorted collection
-        //And we only want to show the first 25 elements
-        if (count($this->podcastLinks) > 1)
-        {
-            $this->podcastLinks = array_unique($this->podcastLinks);
-            rsort($this->podcastLinks);
-            $this->podcastLinks = array_slice($this->podcastLinks, 0, 25);
-            $this->setScrapeData($this->podcastLinks);
-        } else {
-            throw new UnexpectedValueException("ERR::CANNOT RENDER HTML::err::no data");
-        }
-    }
-
-    public function getPodcastLinkCount()
-    {
-        return array('count' => count($this->getScrapeData()));
-    }
-
-    public function displayScrapeHTML(): void
-    {
-        $links = $this->getScrapeData();
-        if(count($links) < 1)
-        {
-            throw new UnexpectedValueException("ERR::No scraped data -- did you fetch and prepare?::");
-        } else {
-            $this->displayLinkHTML('Recent Podcasts', $this->getScrapeData());
-        }
-    }
-
-    public function displayDatabaseScrapeHTML(string $table): void
-    {
-        $databaseLinks = $this->getLinksFromDatabase($table, 'podcasts');
-        if (count($databaseLinks) < 1)
-        {
-            throw new UnexpectedValueException("ERR::No Database Links for category [podcasts]::");
-        } else {
-            $this->displayLinkHTML('Recent Podcasts', $databaseLinks);
-        }
-    }
-}
-
-class OCADailyReadingLinkScraper //extends LinkElementDatabaseScraper
-{
-    //provides different types of link patterns
-    //for verification
-    use ValidatesOrthodoxLinks;
-
-    //TODO
-}
-
-final class OCALivesOfSaintLinkScraper extends LinkElementDatabaseScraper
-{
-    //provides different types of link patterns
-    //for verification
-    use ValidatesOrthodoxLinks;
-
-    private $saintSnippets; //setScrapeData
-    private $saintLinksSort;
-    private $saintNamesSort;
-
-    private $saintNames;
-    private $saintLinks;
-
-    public function __construct(string $scrapeUrl)
-    {
-        parent::__construct($scrapeUrl);
-
-        //create arrays to hold the formatted output
-        //this scraper requires a good bit of formatting
-        $this->saintSnippets = array();
-        $this->saintLinksSort = array();
-        $this->saintNamesSort = array();
-    }
-
-    public function fetchInfo(string $pageParam): void
-    {
-        $this->saintNames = $this->getHtml()->find('article h2');
-        $this->saintLinks = $this->getHtml()->find('article a');
-
-        //construct fully qualified links for each of the saints
-        foreach ($this->saintLinks as $link) {
-            if ($this->isValidLinkType($link->href, $this->getLivesOfSaintsLinkPattern())) {
-                $saintLink = "https://www.oca.org" . $link->href;
-                $this->saintLinksSort[] = $saintLink;
-            }
-        }
-
-        //populate all the saint names (plain text, remove html/styling)
-        foreach ($this->saintNames as $saint) {
-            $this->saintNamesSort[] = $saint->plaintext;
-        }
-
-    }
-
-    public function prepareInfo(): void
-    {
-        //sort the links
-        //this order will match the second array
-        asort($this->saintLinksSort);
-        //We need to have the keys reset
-        //to match the same integer index values as the second array.
-        //We do this because we're going to iterate over the arrays
-        //and create an object with each element of each array
-        //corresponding to a property ex. Object(link, text) -
-        //link is from array1, text is from array2.
-        //removed 12/2/2022
-        //array_values($this->saintLinksSort);
-
-        //there could be varying number of saints each day
-        //we will only work with the top 3
-        //removed 12/1/2022, may come back in the future
-        //array_splice($this->saintNamesSort, 0, 3);
-        //array_splice($this->saintLinksSort, 0, 3);
-
-
-        //now we will start accessing the arrays to build the display objects
-
-        //we must ensure that the above operations were successful
-        if (count($this->saintNamesSort) == count($this->saintLinksSort)) {
-            for ($i = 0; $i < count($this->saintNamesSort); $i++) {
-                $saintLink = $this->saintLinksSort[$i];
-                $saintName = $this->saintNamesSort[$i];
-
-                $saint = new SimpleScraper\SaintLink($saintLink, $saintName);
-                $this->saintSnippets[] = $saint;
-            }
-
-            $this->setScrapeData($this->saintSnippets);
-        } else {
-            throw new UnexpectedValueException("ERR::CANNOT RENDER HTML, ARRAY NOT DIVISIBLE BY 2, CHECK ELEMENT COUNTS::err");
-        }
-    }
-
-    public function getSaintLinkCount()
-    {
-        return array('count' => count($this->getScrapeData()));
-    }
-
-    public function displayScrapeHTML(): void
-    {
-        $links = $this->getScrapeData();
-        if(count($links) < 1)
-        {
-            throw new UnexpectedValueException("ERR::No scraped data -- did you fetch and prepare?::");
-        } else {
-            $this->displayLinkHTML('Daily Saints', $this->getScrapeData());
-        }
-    }
-
-    public function displayDatabaseScrapeHTML(string $table): void
-    {
-        $databaseLinks = $this->getLinksFromDatabase($table, 'saints');
-        if (count($databaseLinks) < 1)
-        {
-            throw new UnexpectedValueException("ERR::No Database Links for category [saints]::");
-        } else {
-            $this->displayLinkHTML('Daily Saints', $databaseLinks);
-        }
     }
 }

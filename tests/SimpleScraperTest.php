@@ -220,7 +220,7 @@ final class SimpleScraperTest extends TestCase
         $this->assertSame($scrapeCount, $scrapeDatabaseCount);
 
         $testScraper->setDebugOn();
-        $testScraper->displayDatabaseScrapeHTML();
+        $testScraper->displayDatabaseScrapeHTML('Daily Readings', 'scriptures');
 
     }
 

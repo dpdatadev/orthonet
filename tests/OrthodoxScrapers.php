@@ -28,6 +28,7 @@ use SimpleScraper\ScraperFactory;
 
 //Contract for building a Simple Scraper
 use SimpleScraper\Scraper;
+use SimpleScraper\SQLITEManager;
 
 //We are scraping HTML links - here are the specific classes to create them
 //Ancient Faith Recent Podcasts
@@ -43,6 +44,23 @@ class ReadingLink extends LinkElement
 //OCA Life of Saint Readings
 class SaintLink extends LinkElement
 {
+}
+
+//Entry point class to use in applications
+abstract class OrthodoxWebScraper
+{
+    public final static function databaseExists(): bool
+    {
+        return SQLITEManager::linkDatabaseExists();
+    }
+    public final static function createDatabaseTable(): void
+    {
+        SQLITEManager::createDatabaseTable('web_scrape_data', 'CREATE TABLE web_scrape_data(ID INTEGER PRIMARY KEY AUTOINCREMENT, link varchar(255) null, text varchar(255) null, category varchar(255) null, create_ts timestamp not null default(CURRENT_TIMESTAMP));');
+    }
+    public final static function getScraper(string $scrapeType, string $scrapeUrl): Scraper
+    {
+        return OrthodoxScraperFactory::createScraper($scrapeType, $scrapeUrl);
+    }
 }
 
 //Creation code
@@ -139,21 +157,6 @@ final class AncientFaithPodcastLinkScraper extends LinkElementDatabaseScraper
             throw new UnexpectedValueException("ERR::CANNOT RENDER HTML::err::no data");
         }
     }
-
-    public function getPodcastLinkCount()
-    {
-        return array('count' => count($this->getScrapeData()));
-    }
-
-    public function displayScrapeHTML(): void
-    {
-        $this->displayLinkHTML('Recent Podcasts', $this->getScrapeData());
-    }
-
-    public function displayDatabaseScrapeHTML(string $table = 'web_scrape_data'): void
-    {
-        $this->displayLinkHTML('Recent Podcasts', $this->getLinksFromDatabase($table, 'podcasts'));
-    }
 }
 
 final class OCADailyReadingLinkScraper extends LinkElementDatabaseScraper
@@ -196,22 +199,6 @@ final class OCADailyReadingLinkScraper extends LinkElementDatabaseScraper
     {
         $this->setScrapeData($this->readingLinks);
     }
-
-    public function getScriptureReadingCount()
-    {
-        return array('count' => count($this->getScrapeData()));
-    }
-
-    public function displayScrapeHTML(): void
-    {
-        $this->displayLinkHTML('Daily Readings', $this->getScrapeData());
-    }
-
-    public function displayDatabaseScrapeHTML(string $table = 'web_scrape_data'): void
-    {
-        $this->displayLinkHTML('Daily Readings', $this->getLinksFromDatabase('scriptures'));
-    }
-
 }
 
 final class OCALivesOfSaintLinkScraper extends LinkElementDatabaseScraper
@@ -282,20 +269,5 @@ final class OCALivesOfSaintLinkScraper extends LinkElementDatabaseScraper
         } else {
             throw new UnexpectedValueException("ERR::CANNOT RENDER HTML, MISMATCHING ELEMENTS, CHECK ELEMENT COUNTS::err");
         }
-    }
-
-    public function getSaintLinkCount()
-    {
-        return array('count' => count($this->getScrapeData()));
-    }
-
-    public function displayScrapeHTML(): void
-    {
-        $this->displayLinkHTML('Daily Saints', $this->getScrapeData());
-    }
-
-    public function displayDatabaseScrapeHTML(string $table = 'web_scrape_data'): void
-    {
-        $this->displayLinkHTML('Daily Saints', $this->getLinksFromDatabase('saints'));
     }
 }

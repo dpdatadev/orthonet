@@ -323,7 +323,7 @@ interface Scraper
     //Scraper clients will return the raw array of scrape data
     public function getScrapeData(): array;
     //Scraper clients will be able to display the scraped HTML
-    public function displayScrapeHTML(): void;
+    public function displayScrapeHTML(string $displayName): void;
 }
 
 interface ScraperFactory
@@ -417,7 +417,15 @@ abstract class LinkElementScraper implements Scraper
         $this->scrapeLinks = $data;
     }
 
-    abstract public function displayScrapeHTML(): void;
+    public function displayScrapeHTML(string $displayName): void
+    {
+        $this->displayLinkHTML($displayName, $this->getScrapeData());
+    }
+
+    public function getLinkCount()
+    {
+        return array('count' => count($this->getScrapeData()));
+    }
 
     //Scraper clients that specialize in links will provide vaildation rules for what they're searching for on the page
     public function validatePageParam(string $pageParam): bool
@@ -458,5 +466,10 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
     public function getLinksFromDatabase(string $category, string $table = 'web_scrape_data', ): array
     {
         return $this->getAllLinks($table, $category);
+    }
+
+    public function displayDatabaseScrapeHTML(string $displayName, string $category): void
+    {
+        $this->displayLinkHTML($displayName, $this->getLinksFromDatabase($category));
     }
 }

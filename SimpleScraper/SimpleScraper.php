@@ -468,7 +468,7 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
         parent::__construct($scrapeUrl);
     }
 
-    public function saveLinksToDatabase(string $category, string $table = 'web_scrape_data', ): void
+    public function saveLinksToDatabase(string $category, string $table = 'web_scrape_data',): void
     {
         $links = $this->getScrapeData();
         if (empty($links) || (count($links) < 1)) {
@@ -478,7 +478,7 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
         }
     }
 
-    public function getLinksFromDatabase(string $category, string $table = 'web_scrape_data', ): array
+    public function getLinksFromDatabase(string $category, string $table = 'web_scrape_data',): array
     {
         return $this->getAllLinks($table, $category);
     }

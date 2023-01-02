@@ -297,15 +297,11 @@ class ArticleScraper extends LinkElementDatabaseScraper
             $this->downloadHtml();
             foreach ($this->getHtml()->find($pageParam) as $articleLink)
             {
-                //this site doesn't have a particular pattern for article links
-                //so we'll just make sure its a fully qualified URL
-
+                //Nothing additional to verify for article links
+                //Other than validating the page param
                 $articleHref = $articleLink->href;
-
                 $articleText = $articleLink->plaintext;
-
                 $article = new ArticleLink($articleHref, $articleText);
-
                 $this->articleLinks[] = $article;
             }
         }

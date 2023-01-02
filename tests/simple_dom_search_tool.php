@@ -2,7 +2,7 @@
 //Utility used to browse various DOM elements.
 //Typically useful to explore a website while coding/testing/etc.,
 //Was provided as is from simple_html_dom examples directory
-include_once('simple_html_dom.php');
+include_once('../SimpleScraper/simple_html_dom.php');
 
 function scraping_generic($url, $search)
 {
@@ -19,7 +19,9 @@ function scraping_generic($url, $search)
         // Found at least one.
         $return = true;
         echo "found a: " . $search . "<br/><pre>";
-        $found->dump();
+        //$found->dump();
+        echo $found->href;
+        echo $found->plaintext;
         echo "</pre><br/>";
     }
 

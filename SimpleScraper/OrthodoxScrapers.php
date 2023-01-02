@@ -46,6 +46,13 @@ class SaintLink extends LinkElement
 {
 }
 
+//Wordpress/site article links - ie:
+//orthochristian.com
+//orthodoxchristiantheology.com
+class ArticleLink extends LinkElement
+{
+}
+
 //Entry point class to use in applications
 abstract class ScrapeManager
 {
@@ -59,19 +66,20 @@ abstract class ScrapeManager
     }
     public final static function getScraper(string $scrapeType, string $scrapeUrl): Scraper
     {
-        return OrthodoxScraperFactory::createScraper($scrapeType, $scrapeUrl);
+        return OrthodoxLinkScraperFactory::createScraper($scrapeType, $scrapeUrl);
     }
 }
 
 //Creation code
-final class OrthodoxScraperFactory implements ScraperFactory
+final class OrthodoxLinkScraperFactory implements ScraperFactory
 {
     public static function createScraper(string $scraperType, string $scrapeUrl): Scraper
     {
         $scraperClient = match ($scraperType) {
             'Podcasts' => new AncientFaithPodcastLinkScraper($scrapeUrl),
             'Saints' => new OCALivesOfSaintLinkScraper($scrapeUrl),
-            'Readings' => new OCADailyReadingLinkScraper($scrapeUrl)
+            'Readings' => new OCADailyReadingLinkScraper($scrapeUrl),
+            'Articles' => new ArticleScraper($scrapeUrl),
         };
 
         return $scraperClient;
@@ -149,9 +157,9 @@ final class AncientFaithPodcastLinkScraper extends LinkElementDatabaseScraper
         //And we only want to show the first 25 elements
         if (count($this->podcastLinks) > 1)
         {
+            $this->podcastLinks = array_slice($this->podcastLinks, 0, 35);
             $this->podcastLinks = array_unique($this->podcastLinks);
             rsort($this->podcastLinks);
-            $this->podcastLinks = array_slice($this->podcastLinks, 0, 25);
             $this->setScrapeData($this->podcastLinks);
         } else {
             throw new UnexpectedValueException("ERR::CANNOT RENDER HTML::err::no data");
@@ -268,6 +276,48 @@ final class OCALivesOfSaintLinkScraper extends LinkElementDatabaseScraper
             $this->setScrapeData($this->saintSnippets);
         } else {
             throw new UnexpectedValueException("ERR::CANNOT RENDER HTML, MISMATCHING ELEMENTS, CHECK ELEMENT COUNTS::err");
+        }
+    }
+}
+
+class ArticleScraper extends LinkElementDatabaseScraper
+{
+    private array $articleLinks;
+
+    public function __construct(string $scrapeUrl)
+    {
+        parent::__construct($scrapeUrl);
+        $this->articleLinks = array();
+    }
+
+    public function fetchInfo(string $pageParam): void
+    {
+        if ($this->validatePageParam($pageParam))
+        {
+            $this->downloadHtml();
+            foreach ($this->getHtml()->find($pageParam) as $articleLink)
+            {
+                //this site doesn't have a particular pattern for article links
+                //so we'll just make sure its a fully qualified URL
+
+                $articleHref = $articleLink->href;
+
+                $articleText = $articleLink->plaintext;
+
+                $article = new ArticleLink($articleHref, $articleText);
+
+                $this->articleLinks[] = $article;
+            }
+        }
+    }
+
+    public function prepareInfo(): void
+    {
+        if (count($this->articleLinks) < 1)
+        {
+            throw new UnexpectedValueException("ERR::did you forget to fetch the info first?");
+        } else {
+            $this->setScrapeData($this->articleLinks);
         }
     }
 }

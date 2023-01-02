@@ -1,22 +1,23 @@
 <?php //include_once('./lib/top-cache.php');?>
 <?php
-require_once './lib/DB.php';
 session_start();
-use PDOSingleton\Postgres as DB;
-use Scraping\OCALivesOfSaints as SaintsPage;
-use Scraping\OCADailyReadings as DailyScripturePage;
-use Scraping\AncientFaithPodcasts as PodcastsPage;
+
+require_once './SimpleScraper/OrthodoxScrapers.php';
+
+use app\scrapers\ScrapeManager as WebScraping;
 
 // Website to display the latest articles, news, podcasts, scripture readings, and saint readings
 //from various Orthodox websites. I can save what I want to for later viewing.
 
-// TODO - dynamically get all scrape schemas and display all the details so we don't have to keep
-//        updating this homepage with a new scraped site
-//12/2/2022 - So we have successfully been able to display much of the scrape data dynamically from the web
-//pages instead of scraping them and loading them to the database first.
-//The plan will be to use the simple_dom library to scrape and display various available data
-//from several websites. Then to make this tool truly usable for me I'll add the ability
-//to save the resources for later - those will persist to the database.
+$podcastScraper = WebScraping::getScraper('Podcasts', "https://www.ancientfaith.com/podcasts#af-recent-episodes");
+$articleScraper = WebScraping::getScraper('Articles', "https://www.orthodoxchristiantheology.com");
+$readingScraper = WebScraping::getScraper('Readings', 'https://www.oca.org/readings');
+$saintScraper = WebScraping::getScraper('Saints', 'https://www.oca.org/saints/lives/');
+
+
+$ancientFaithPodcastCount = $podcastScraper->getTableCount('web_scrape_data', 'podcasts');
+$articleCount = $articleScraper->getTableCount('web_scrape_data', 'articles');
+
 
 //Manage login user
 $pageUserDisplay = "<label style='color:red'><b>LOGIN PROBLEM - CONTACT ADMINISTRATOR!</b></label>";
@@ -30,8 +31,6 @@ if (isset($_SESSION["username"])) {
     $pageUserRegisterDisplay = "<p><button class='btn'><a href='register.php' />Register</button></p>";
 }
 
-$orthoChristianArticlesCount = DB::run("SELECT COUNT(*) FROM articles.orthochristian;")->fetch();
-$orthodoxChristianTheologyArticlesCount = DB::run("SELECT COUNT(*) FROM articles.orthodoxchristiantheology;")->fetch();
 ?>
 <style>
     .card-header {
@@ -51,25 +50,6 @@ $orthodoxChristianTheologyArticlesCount = DB::run("SELECT COUNT(*) FROM articles
     <?php
     include_once('header.php');
 ?>
-
-    <?php
-
-//construct the OCA Daily Scripture Readings HTML
-$dailyScriptureReadings = new DailyScripturePage();
-$dailyScriptureReadings->fetchScriptureInfo();
-
-//construct the OCA Saint of the Day HTML
-$saintsOfTheDay = new SaintsPage();
-$saintsOfTheDay->fetchSaintInfo();
-$saintsOfTheDay->prepareSaintHtml();
-
-//construct Ancient Faith podcast HTML
-$recentPodcasts = new PodcastsPage();
-$recentPodcasts->saveLinksToDatabase('ancient_faith_podcasts');
-
-$ancientFaithPodcastCount = $recentPodcasts->getPodcastLinkCount();
-?>
-
     <div class="jumbotron" style="background-color: grey">
         <div class="container">
             <div class="card">
@@ -93,13 +73,12 @@ $ancientFaithPodcastCount = $recentPodcasts->getPodcastLinkCount();
 
 
                         <?php echo "<h4 class='display-4 text-center'>OrthoChristian.com</h4>"; ?>
-                        <?php echo "<p class='lead text-center'>" . $orthoChristianArticlesCount['count'] . "+ new articles</p>" ?>
-                        <br/>
                         <?php echo "<h4 class='display-4 text-center'>OrthodoxChristianTheology.com</h4>"; ?>
-                        <?php echo "<p class='lead text-center'>" . $orthodoxChristianTheologyArticlesCount['count'] . "+ new articles</p>" ?>
+                        <?php echo "<h4 class='display-4 text-center'>PatristicFaith.com</h4>"; ?>
+                        <?php echo "<p class='lead text-center'>" . $articleCount . "+ new articles</p>" ?>
                         <br/>
                         <?php echo "<h4 class='display-4 text-center'>Ancient Faith Ministries</h4>"; ?>
-                        <?php echo "<p class='lead text-center'>" . $ancientFaithPodcastCount['count'] . "+ new Podcast episodes!</p>" ?>
+                        <?php echo "<p class='lead text-center'>" . $ancientFaithPodcastCount . "+ new Podcast episodes!</p>" ?>
 
                     </ul>
 
@@ -110,7 +89,6 @@ $ancientFaithPodcastCount = $recentPodcasts->getPodcastLinkCount();
                     <ul class="text-center">
                         <p class="lead"><i>Search functionality!<i></p>
                         <p class="lead"><i>Patristic Faith Ministries!</i></p>
-                        <p class="lead"><i>Patristic Nectar, Abbot Tryphon</i></p>
                         <p class="lead"><i>and more!</i></p>
                     </ul>
                 </div>
@@ -124,11 +102,13 @@ $ancientFaithPodcastCount = $recentPodcasts->getPodcastLinkCount();
         <div>
             <hr/>
             <!--Display the OCA daily Scripture Readings-->
-            <?php $dailyScriptureReadings->displayScriptureHTML(); ?>
+            <?php $readingScraper->displayDatabaseScrapeHTML('Recent Readings', 'readings'); ?>
             <!--Display the OCA daily Lives of Saints-->
-            <?php $saintsOfTheDay->displaySaintHtml(); ?>
+            <?php $saintScraper->displayDatabaseScrapeHTML('Daily Saints', 'saints'); ?>
             <!--Display the newest Ancient Faith podcast episodes-->
-            <?php $recentPodcasts->displayDatabasePodcastLinks('ancient_faith_podcasts'); ?>
+            <?php $podcastScraper->displayDatabaseScrapeHTML('Recent Podcasts', 'podcasts'); ?>
+            <!--Display the newest articles -->
+            <?php $articleScraper->displayDatabaseScrapeHTML('Recent Articles', 'articles'); ?>
 
             <?php echo "<div class='text-center'><span class='badge badge-secondary' style='color:yellow'><i><b>Last Updated: " . date("Y-m-d") . "</b></i></span></div><br>"; ?>
         </div>

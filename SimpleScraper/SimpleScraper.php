@@ -77,7 +77,7 @@ namespace SimpleScraper;
 //dependencies
 require_once './vendor/autoload.php';
 //opensource PHP web scraping library
-require_once '../lib/simple_html_dom.php';
+require_once 'simple_html_dom.php';
 
 use ReflectionObject as ObjectInspector;
 
@@ -249,11 +249,26 @@ trait LinkElementDatabaseAccess
         return SQLITEManager::linkDatabaseExists();
     }
 
-    protected function getDatabaseLinkCount(string $linkTable): int
+    protected function getDatabaseLinkCount(string $table, string $category): int
     {
         $conn = self::getSqlite3Connection();
-        $query = "SELECT * FROM " . $linkTable;
-        $num_rows = $conn->executeQuery($query)->rowCount();
+        $queryBuilder = $conn->createQueryBuilder();
+        $queryBuilder->select('link, text')->from($table)->where('category = ?')->setParameter(0, $category);
+        $stmt = $queryBuilder->execute();
+        $num_rows = 0;
+
+        if ($this->isDebugOn() === true) {
+            echo $queryBuilder->getSQL() . " (param): " . $queryBuilder->getParameter(0) . PHP_EOL;
+        }
+
+        foreach($stmt->fetchAll(FetchMode::NUMERIC) as $row)
+        {
+            if ($row !== null)
+            {
+                $num_rows += 1;
+            }
+        }
+
         return $num_rows;
     }
 
@@ -471,5 +486,10 @@ abstract class LinkElementDatabaseScraper extends LinkElementScraper
     public function displayDatabaseScrapeHTML(string $displayName, string $category): void
     {
         $this->displayLinkHTML($displayName, $this->getLinksFromDatabase($category));
+    }
+
+    public function getTableCount(string $table, string $category)
+    {
+        return $this->getDatabaseLinkCount($table, $category);
     }
 }
